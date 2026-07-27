@@ -1,0 +1,21 @@
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+
+Copyright 2026 Agrieby Chaniago
+
+This license applies to the MGS specification text in this directory
+(specs/mgs/), not to the ModelGate source code — see the root LICENSE
+(Apache-2.0) for that.
+
+The MGS specification is intended to be freely copied, adapted, and
+reimplemented by anyone, including in implementations other than
+ModelGate — that is the entire point of it being a specification rather
+than a single tool. CC BY 4.0 permits exactly that, provided attribution
+is given.
+
+Full legal code: https://creativecommons.org/licenses/by/4.0/legalcode
+Human-readable summary: https://creativecommons.org/licenses/by/4.0/
+
+PLACEHOLDER — full text to be embedded verbatim in Fase 1 (specs/mgs/
+draft), per the ModelGate restructuring plan. This stub exists so the
+license choice is recorded and effective from Fase 0 onward, even before
+specs/mgs/ has any content to license.
