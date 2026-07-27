@@ -1,4 +1,4 @@
-"""modelgate — reference implementation of MGS (Model Gate Specification).
+"""modelgate — reference implementation of MGS (Model Gate Standard).
 
 Public API surface (stable once tagged 1.0, see ROADMAP.md Fase 4 / D5.1):
     modelgate.audit, modelgate.read_dataset, modelgate.Manifest,

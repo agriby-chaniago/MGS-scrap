@@ -2,8 +2,7 @@
 
 ## What — Apa itu ModelGate?
 
-ModelGate adalah **reference implementation** dari **MGS** (Model Gate
-Specification) — spesifikasi terbuka yang mendefinisikan apa artinya
+ModelGate adalah **reference implementation** dari **MGS** (Model Gate Standard) — spesifikasi terbuka yang mendefinisikan apa artinya
 sebuah dataset gambar Computer Vision (CV) "layak dievaluasi", dan apa
 yang harus dihasilkan oleh implementasi evaluasi itu agar dua
 implementasi independen — di bahasa apa pun — bisa sampai pada verdict

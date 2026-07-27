@@ -1,4 +1,4 @@
-# MGS 1.0 — Model Gate Specification
+# MGS 1.0 — Model Gate Standard
 
 **Status:** Final (frozen 2026-07-27 — see §9)
 **License:** CC BY 4.0 (see `specs/LICENSE`)

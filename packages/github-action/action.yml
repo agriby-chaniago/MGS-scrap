@@ -1,6 +1,6 @@
 name: 'MGS Check'
 description: >
-  Evaluate a Computer Vision dataset against MGS (Model Gate Specification)
+  Evaluate a Computer Vision dataset against MGS (Model Gate Standard)
   using modelgate, the reference implementation. Fails the step (non-zero
   exit) unless the dataset's overall verdict is PASS.
 author: 'ModelGate'

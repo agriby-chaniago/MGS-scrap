@@ -12,8 +12,7 @@
 
 **Repository:** https://github.com/agriby-chaniago/MGS
 
-`modelgate` is the reference implementation of **MGS** (Model Gate
-Specification) — an open spec for evaluating computer vision dataset
+`modelgate` is the reference implementation of **MGS** (Model Gate Standard) — an open spec for evaluating computer vision dataset
 quality, designed so independent implementations produce identical,
 reproducible verdicts for the same dataset.
 
