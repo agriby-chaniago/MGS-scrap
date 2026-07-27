@@ -152,12 +152,13 @@ CI: `.github/workflows/conformance.yml` — job terpisah dari `build.yml`, menja
 
 ---
 
-## Fase 4 — CLI + rilis PyPI
+## Fase 4 — CLI + rilis TestPyPI ✅ SELESAI
 
 **Ukuran:** 1 minggu · **Prioritas 1 & 2 dari D7**
 
 ```bash
-pip install modelgate
+pip install "Pillow>=10.3.0" "numpy>=1.26.4" "imagehash>=4.3.1"
+pip install --index-url https://test.pypi.org/simple/ --no-deps modelgate
 modelgate check ./data --spec mgs-1.0
 modelgate check ./data --json > report.json
 ```
@@ -165,11 +166,15 @@ modelgate check ./data --json > report.json
 Plus: permukaan API publik dikunci (D5.1), `CHANGELOG.md` dimulai (H5), README root bahasa Inggris (H3), pesan error core bahasa Inggris.
 
 **Exit criteria**
-- Terpasang dari PyPI di venv bersih, jalan pada dataset asli
-- `modelgate check` keluar dengan **exit code non-nol saat FAIL** — syarat mutlak agar berguna di CI
-- API publik terdokumentasi dan ditandai stabil; sisanya `_internal`
+- ✅ Terpasang dari **TestPyPI** (`v0.1.0`) di venv bersih baru, `modelgate check` jalan lewat CLI pada fixture asli (`conformance/fixtures/imagefolder-equivalent`), exit code 0
+- ✅ `modelgate check` keluar dengan exit code non-nol saat `FAIL` (perilaku sudah ada sejak `cli.py`, bukan baru — tidak diverifikasi ulang di rilis ini, sudah diverifikasi Fase 2)
+- ✅ API publik terdokumentasi dan ditandai stabil; sisanya `_internal`
 
-**Di titik ini proyek sudah berguna bagi orang lain.** Semua sesudahnya adalah perluasan.
+**Temuan saat verifikasi install:** `pip install -i https://test.pypi.org/simple/ modelgate` polos (tanpa `--extra-index-url` dikontrol) menarik paket **produksi PyPI** yang tidak terkait (nama sama, versi lebih tinggi) alih-alih paket TestPyPI ini — pip lintas-index memilih versi tertinggi, bukan index yang diminta. Diperbaiki dengan memasang dependency dari PyPI produksi dulu, baru paket ini dari TestPyPI dengan `--no-deps` (lihat `README.md` §Install). Ini bukan sekadar catatan kaki instalasi — ini alasan konkret nama `modelgate` **tidak** dipakai untuk rilis produksi (F10, `modelgate-mgs`).
+
+**PyPI produksi belum dipublikasikan** — sesuai keputusan awal, ditahan sampai Fase 7 (`modelgate-mgs`, repo baru).
+
+**Di titik ini proyek sudah berguna bagi orang lain** — lewat TestPyPI, dengan flag index yang benar. `pip install modelgate-mgs` polos (tanpa flag apa pun) masih Fase 7.
 
 ---
 

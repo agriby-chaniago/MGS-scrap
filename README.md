@@ -30,13 +30,26 @@ example dataset so it works standalone.
 
 ## Install
 
+Published to **TestPyPI** (staging — see `ROADMAP.md` Fase 4).
+Production PyPI (`pip install modelgate-mgs`, no extra flags) is Fase 7.
+
+```bash
+pip install "Pillow>=10.3.0" "numpy>=1.26.4" "imagehash>=4.3.1"
+pip install --index-url https://test.pypi.org/simple/ --no-deps modelgate
+```
+
+**Don't** use `--extra-index-url https://pypi.org/simple/` here — production
+PyPI already has an unrelated package also named `modelgate` (a different
+project, higher version number), and pip will silently prefer it over
+this one. Install dependencies from production PyPI first (as above),
+then this package from TestPyPI only, with `--no-deps`.
+
+Or from source, for development:
+
 ```bash
 cd packages/modelgate-core
 pip install -e .
 ```
-
-(Will become `pip install modelgate-mgs` once released — see
-`ROADMAP.md` Fase 7. Not yet published to production PyPI.)
 
 CLI, same thing without Python:
 

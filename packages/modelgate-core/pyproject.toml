@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "modelgate"
-version = "0.0.0.dev0"
+version = "0.1.0"
 description = "Reference implementation of MGS (Model Gate Specification) — dataset quality evaluation for computer vision datasets."
 readme = "README.md"
 license = { text = "Apache-2.0" }

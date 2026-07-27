@@ -6,7 +6,7 @@ independently — see `specs/mgs/MGS-1.0.md` §8. Each entry notes which
 `spec_version` it targets, since that's what actually determines whether
 two Reports are comparable, not the tool's own version number.
 
-## [Unreleased]
+## [0.1.0] - 2026-07-27
 
 Targets: **MGS 1.0**
 
@@ -31,6 +31,11 @@ Targets: **MGS 1.0**
 - Only ZIP and plain-directory Datasets are supported. COCO, YOLO, and
   HuggingFace-format readers are deferred past the v1.0 public release —
   see `ROADMAP.md` Fase 6.
-- No production PyPI release yet — this package has only been verified
-  against TestPyPI (`ROADMAP.md` Fase 4). The real `pip install modelgate`
-  happens at Fase 7.
+- No production PyPI release yet. Published to TestPyPI only
+  (`ROADMAP.md` Fase 4, verified: fresh venv, real install, CLI run
+  against a conformance fixture, exit code 0). See root `README.md`
+  "Install" for the exact command — plain `-i .../simple/ modelgate`
+  is not enough, production PyPI already has an unrelated package
+  under this same name and pip will prefer it unless you pin the
+  index and skip deps resolution there. The real
+  `pip install modelgate-mgs` from production PyPI happens at Fase 7.
