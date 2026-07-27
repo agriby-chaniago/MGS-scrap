@@ -366,7 +366,7 @@ MGS/
 │   ├── modelgate-streamlit/      UI lama — diarsipkan, tidak di-maintain aktif
 │   └── github-action/            GitHub Action — dibangun Fase 6
 ├── specs/
-│   ├── mgs/                     Draf spesifikasi MGS (MGS-1.0-draft.md)
+│   ├── mgs/                     Draf spesifikasi MGS (MGS-1.0.md)
 │   └── LICENSE                  CC-BY-4.0, khusus untuk spec
 ├── conformance/                  Korpus conformance — dibangun Fase 3
 ├── docs/

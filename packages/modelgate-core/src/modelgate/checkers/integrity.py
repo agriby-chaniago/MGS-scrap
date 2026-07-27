@@ -28,7 +28,14 @@ def check(manifest: Manifest, config: dict) -> RequirementResult:
             with Image.open(sample.source_path) as img:
                 img.verify()
         except Exception as e:
-            findings.append({"uri": sample.uri, "error": str(e)})
+            # type(e).__name__ only — NOT str(e). PIL's exception message
+            # embeds the absolute source_path it tried to open (e.g. a
+            # freshly-mkdtemp'd extraction dir for ZipReader), which is
+            # ephemeral and differs on every run and every machine. A
+            # finding must be reproducible (spec §7) — sample.uri already
+            # identifies which file, so the error type is enough signal
+            # without leaking a non-reproducible path into the Report.
+            findings.append({"uri": sample.uri, "error": type(e).__name__})
 
     findings.sort(key=lambda f: f["uri"])  # spec §6.3 — byte-wise ordering
     corruption_rate = round4(len(findings) / total)

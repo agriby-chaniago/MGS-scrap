@@ -1,6 +1,6 @@
 # MGS 1.0 — Model Gate Specification
 
-**Status:** Draft
+**Status:** Final (frozen 2026-07-27 — see §9)
 **License:** CC BY 4.0 (see `specs/LICENSE`)
 
 ## 0. What this is
@@ -360,15 +360,18 @@ implementation would produce do not.
 
 ---
 
-## 9. Status of this draft
+## 9. Status
 
-This is a **draft**. Per the ModelGate project's own restructuring plan,
-it is expected to be revised by findings made while building the
-reference implementation's Reader/Manifest/Checker pipeline (see
-`ROADMAP.md`, Fase 2) before being frozen as MGS 1.0 proper (`ROADMAP.md`,
-Fase 3) once the conformance corpus (§7.2) is green.
+**MGS 1.0 is frozen.** It was carried as a draft through Fase 1–2 of the
+ModelGate restructuring (`ROADMAP.md`), revised by findings made while
+building the reference implementation's Reader/Manifest/Checker
+pipeline, and frozen in Fase 3 once the conformance corpus (§7.2) —
+`conformance/fixtures/` + `conformance/expected/*.json`, run via
+`conformance/runner.py` — went green across all fixtures. Per §8, further
+changes to §5 (Requirements) now constitute MGS 1.1 or later, not edits
+to this document.
 
-**Revisions made so far during Fase 2 implementation:**
+**Revisions made while it was still a draft (Fase 2 implementation):**
 - §2.2 gained the implementation-note paragraph on Sample-level
   filesystem access (`source_path`-style fields) after building the
   actual Reader/Checker split revealed Checkers need a way to read
@@ -382,4 +385,6 @@ Fase 3) once the conformance corpus (§7.2) is green.
   empty directories, not just files, which is not yet implemented.
   Tracked as a known gap in the reference implementation, not a spec
   change — the requirement text in §5.1 is still correct; the FAIL
-  condition is honest about what's covered.
+  condition is honest about what's covered. **This gap survives the
+  freeze** — it is a reference-implementation limitation, not something
+  §5.1's normative text needs to accommodate.

@@ -40,7 +40,7 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/agriby-chaniago/MGS"
-Specification = "https://github.com/agriby-chaniago/MGS/blob/main/specs/mgs/MGS-1.0-draft.md"
+Specification = "https://github.com/agriby-chaniago/MGS/blob/main/specs/mgs/MGS-1.0.md"
 
 # Placeholder — the actual `modelgate` CLI command is built in Fase 4
 # (ROADMAP.md). Declared here now so the packaging shape doesn't change

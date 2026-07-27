@@ -1,6 +1,6 @@
 """The Manifest — normalized, format-independent representation of a Dataset.
 
-Schema matches specs/mgs/MGS-1.0-draft.md §2.2. `Manifest.root` is the
+Schema matches specs/mgs/MGS-1.0.md §2.2. `Manifest.root` is the
 one field NOT part of that schema — see its docstring below.
 """
 

@@ -77,7 +77,7 @@ modelgate/
 Kode lama **dipindahkan apa adanya** dulu — belum di-refactor. Tujuan langkah ini hanya memindahkan berkas supaya diff di fase berikutnya terbaca.
 
 **Exit criteria**
-- `specs/mgs/MGS-1.0-draft.md` ada, memakai MUST/SHOULD/MAY, tiap threshold punya alasan tertulis
+- `specs/mgs/MGS-1.0.md` ada, memakai MUST/SHOULD/MAY, tiap threshold punya alasan tertulis
 - Skema Manifest terdefinisi cukup lengkap sehingga **keempat requirement bisa dievaluasi tanpa menyentuh filesystem**
 - Struktur direktori monorepo sudah jadi, `docker compose up` masih jalan seperti sebelumnya
 
@@ -109,35 +109,46 @@ Reader ──→ Manifest ──→ Checker ──→ Report
 
 ---
 
-## Fase 3 — Korpus conformance + pembekuan spec
+## Fase 3 — Korpus conformance + pembekuan spec · ✅ SELESAI
 
-**Ukuran:** 1–2 minggu
+**Ukuran:** 1–2 minggu (aktual: dikerjakan langsung menyambung Fase 2 dalam sesi yang sama)
 
 Yang mengubah MGS dari dokumen jadi spesifikasi. (D4)
 
+Realisasi (sedikit berbeda dari sketsa awal — bukan dipecah per-`MGS-000X-*/`
+folder, tapi flat di `conformance/fixtures/*.zip` + `conformance/expected/*.json`,
+karena tiap fixture sudah diberi nama yang menyatakan intent-nya):
+
 ```
 conformance/
-  MGS-0001-structure/{pass-*,fail-*,edge-*}/
-  MGS-0002-integrity/...
-  MGS-0003-duplicate/...
-  MGS-0004-balance/...
-  expected/*.json          ← format netral, bukan pytest
-  runner.py
+  fixtures/
+    generate.py                        ← generator deterministik (noise sintetis,
+    adhoc-{single-root,flat-class,split}.zip   bukan flat-color — lihat catatan di generate.py
+    structure-{pass,fail-single-class}.zip     soal kenapa flat-color gagal untuk uji pHash)
+    edge-empty.zip
+    integrity-{pass,fail-corrupted}.zip
+    duplicate-{pass,fail-near-identical}.zip
+    balance-{pass,fail-imbalanced}.zip
+  expected/*.json                      ← 12 file, JSON netral (bukan pytest), di-freeze via --update
+  runner.py                            ← kontrak CLI subprocess (spec §7.3), bukan impor Python
 ```
 
-Fixture kecil (puluhan gambar sintetis, bukan PetImages) supaya bisa masuk git dan jalan cepat di CI.
+**Kasus yang hari ini gagal senyap — sudah diverifikasi terbalik:**
+- `edge-empty.zip` → `NOT_EVALUATED`/`FAIL` di semua requirement (dulu: `PASS`, skor 0.80, grade A — bug A2)
+- `adhoc-flat-class.zip` → `PASS` (dulu: 0 objek ter-upload, tanpa error — bug A1)
+- `adhoc-split.zip` → split preserved di URI (`train/cat/0.jpg` dll)
+- **Bukti G5 langsung:** `adhoc-single-root.zip` dan `adhoc-flat-class.zip` — dua packaging berbeda, isi logis identik — menghasilkan `dataset_hash` yang **sama persis**.
 
-**Wajib ada** — kasus yang hari ini gagal senyap:
-- `edge-empty/` → `NOT_EVALUATED` (hari ini: `PASS`, skor 0.80, grade A)
-- `edge-flat-zip-layout/` → `PASS` (hari ini: 0 objek, tanpa error)
-- `edge-split-layout/` → split terjaga
+Runner diverifikasi bisa gagal sungguhan (bukan selalu hijau): expected file sengaja dirusak, `MISMATCH` + exit 1 terdeteksi tepat, lalu dipulihkan.
 
-Setelah korpus hijau, **MGS 1.0 dibekukan**. Perubahan setelah titik ini butuh naik versi.
+CI: `.github/workflows/conformance.yml` — job terpisah dari `build.yml`, menjalankan `conformance/runner.py` di tiap push/PR.
 
-**Exit criteria**
-- `conformance/runner.py` hijau untuk `modelgate-core`
-- CI gagal kalau ada satu byte perbedaan dari `expected/`
-- `specs/mgs/MGS-1.0.md` — status Draft dicabut
+**MGS 1.0 dibekukan** — `specs/mgs/MGS-1.0-draft.md` → `specs/mgs/MGS-1.0.md`, status "Draft" → "Final" (§9 spec mencatat kapan & kenapa). Perubahan §5 (Requirements) sekarang jadi MGS 1.1+, bukan edit dokumen ini.
+
+**Exit criteria — semua terpenuhi:**
+- ✅ `conformance/runner.py` hijau untuk `modelgate-core` (12/12 fixture)
+- ✅ CI (`conformance.yml`) gagal kalau ada beda dari `expected/` — diverifikasi dengan mismatch sengaja
+- ✅ `specs/mgs/MGS-1.0.md` — status Draft dicabut
 
 ---
 

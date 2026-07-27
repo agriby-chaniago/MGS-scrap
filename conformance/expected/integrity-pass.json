@@ -1,0 +1,64 @@
+{
+  "dataset_hash": "383b6799cd2f64f32a5a9cff71c56a8df55e16399e10c1f44dc3af7ecf8db271",
+  "informative": {
+    "resolution": {
+      "images_in_normal_range": 1.0,
+      "median_height": 32.0,
+      "median_width": 32.0,
+      "std_height": 0.0,
+      "std_width": 0.0,
+      "total": 2
+    }
+  },
+  "requirements": [
+    {
+      "config": {},
+      "findings": [],
+      "id": "MGS-0001",
+      "metrics": {
+        "label_count": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "config": {},
+      "findings": [],
+      "id": "MGS-0002",
+      "metrics": {
+        "corrupted": 0,
+        "corruption_rate": 0.0,
+        "total": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "config": {
+        "hamming_threshold": 10
+      },
+      "findings": [],
+      "id": "MGS-0003",
+      "metrics": {
+        "duplicate_pairs": 0,
+        "duplicate_rate": 0.0,
+        "total": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "config": {
+        "max_gini": 0.4
+      },
+      "findings": [],
+      "id": "MGS-0004",
+      "metrics": {
+        "counts_per_label": {
+          "cat": 1,
+          "dog": 1
+        },
+        "gini_coefficient": 0.0
+      },
+      "verdict": "PASS"
+    }
+  ],
+  "spec_version": "1.0"
+}

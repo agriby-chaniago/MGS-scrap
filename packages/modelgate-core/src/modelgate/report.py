@@ -1,4 +1,4 @@
-"""The Report — schema matches specs/mgs/MGS-1.0-draft.md §4."""
+"""The Report — schema matches specs/mgs/MGS-1.0.md §4."""
 
 import json
 from dataclasses import asdict, dataclass, field

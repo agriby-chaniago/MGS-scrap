@@ -14,7 +14,7 @@ ModelGate bukan tool untuk melatih model — ModelGate adalah **penjaga
 gerbang** sebelum dataset masuk ke pipeline training, dan implementasi
 rujukan dari spesifikasi yang lebih besar dari dirinya sendiri: siapa
 pun boleh membangun implementasi MGS lain, dan itu tetap dianggap sah
-selama sesuai spesifikasi — lihat `specs/mgs/MGS-1.0-draft.md` §7.
+selama sesuai spesifikasi — lihat `specs/mgs/MGS-1.0.md` §7.
 
 ---
 
@@ -102,7 +102,7 @@ lain menyusul, lihat `ROADMAP.md` Fase 6) dibaca oleh sebuah **Reader**
 dan dinormalisasi menjadi **Manifest** — representasi netral yang tidak
 lagi tahu apakah asalnya ZIP atau folder. Seluruh Checker di bawah ini
 hanya membaca Manifest, tidak pernah menyentuh dataset mentah secara
-langsung. Detail skema Manifest ada di `specs/mgs/MGS-1.0-draft.md` §2.
+langsung. Detail skema Manifest ada di `specs/mgs/MGS-1.0.md` §2.
 
 ### 2. Checker mengevaluasi tiap Requirement MGS-1.0
 
@@ -152,7 +152,7 @@ Dataset bermasalah yang lolos ke pipeline training membuang jam hingga berhari-h
 Dataset bersih menghasilkan model yang lebih general dan tidak overfit.
 
 **Proses yang dapat direproduksi — ini yang membedakan MGS dari sekadar "tool audit".**
-Laporan yang sama, dari dataset yang sama, dievaluasi terhadap versi spec yang sama, harus menghasilkan verdict yang sama — di implementasi apa pun. Itu bukan aspirasi, itu definisi konformansi (`specs/mgs/MGS-1.0-draft.md` §7).
+Laporan yang sama, dari dataset yang sama, dievaluasi terhadap versi spec yang sama, harus menghasilkan verdict yang sama — di implementasi apa pun. Itu bukan aspirasi, itu definisi konformansi (`specs/mgs/MGS-1.0.md` §7).
 
 **Tidak terkunci ke satu tool.**
 MGS adalah spesifikasi terbuka (lisensi CC BY 4.0, `specs/LICENSE`). ModelGate adalah satu implementasi rujukannya, bukan satu-satunya yang sah.

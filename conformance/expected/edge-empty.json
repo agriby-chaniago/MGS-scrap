@@ -1,0 +1,45 @@
+{
+  "dataset_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "informative": {
+    "resolution": {
+      "total": 0
+    }
+  },
+  "requirements": [
+    {
+      "config": {},
+      "findings": [],
+      "id": "MGS-0001",
+      "metrics": {
+        "label_count": 0
+      },
+      "verdict": "FAIL"
+    },
+    {
+      "config": {},
+      "findings": [],
+      "id": "MGS-0002",
+      "metrics": {},
+      "verdict": "NOT_EVALUATED"
+    },
+    {
+      "config": {
+        "hamming_threshold": 10
+      },
+      "findings": [],
+      "id": "MGS-0003",
+      "metrics": {},
+      "verdict": "NOT_EVALUATED"
+    },
+    {
+      "config": {
+        "max_gini": 0.4
+      },
+      "findings": [],
+      "id": "MGS-0004",
+      "metrics": {},
+      "verdict": "NOT_EVALUATED"
+    }
+  ],
+  "spec_version": "1.0"
+}

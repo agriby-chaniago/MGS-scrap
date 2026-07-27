@@ -1,6 +1,6 @@
 # modelgate-core
 
-Reference implementation of [MGS (Model Gate Specification)](../../specs/mgs/MGS-1.0-draft.md) — pure-Python, zero infrastructure dependencies.
+Reference implementation of [MGS (Model Gate Specification)](../../specs/mgs/MGS-1.0.md) — pure-Python, zero infrastructure dependencies.
 
 **Status:** Fase 1 packaging skeleton. The actual Reader → Manifest →
 Checker → Report pipeline is built in Fase 2 — see

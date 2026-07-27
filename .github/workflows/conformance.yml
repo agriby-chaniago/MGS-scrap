@@ -1,0 +1,31 @@
+name: MGS Conformance
+
+# Fase 3 exit criteria (ROADMAP.md): CI must fail on any conformance
+# mismatch — not just build container images (that's build.yml). This is
+# the gate that makes MGS a specification rather than a claim: any PR
+# that changes modelgate-core's Reader/Checker/Report behavior has to
+# still reproduce every frozen expected/*.json exactly, or this fails.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install modelgate-core
+        run: pip install -e packages/modelgate-core
+
+      - name: Run conformance corpus
+        run: python3 conformance/runner.py

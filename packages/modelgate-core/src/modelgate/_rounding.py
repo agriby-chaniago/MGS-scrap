@@ -1,4 +1,4 @@
-"""Numeric semantics per specs/mgs/MGS-1.0-draft.md §6.
+"""Numeric semantics per specs/mgs/MGS-1.0.md §6.
 
 Python's builtin round() uses round-half-to-even (banker's rounding),
 which the spec explicitly forbids (§6.2) — two conformant implementations
