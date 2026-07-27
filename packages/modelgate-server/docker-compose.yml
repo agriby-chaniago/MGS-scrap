@@ -153,7 +153,7 @@ services:
       - "8080:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./docs:/usr/share/nginx/html/docs:ro
+      - ../../docs:/usr/share/nginx/html/docs:ro
     depends_on:
       - dataset_service
       - audit_service
@@ -162,7 +162,7 @@ services:
       - auth_service
 
   streamlit:
-    build: ./streamlit_app
+    build: ../modelgate-streamlit
     ports:
       - "8501:8501"
     environment:
@@ -172,9 +172,9 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ../modelgate-web
       args:
-        # Vite bakes this in at build time (see frontend/Dockerfile) — it
+        # Vite bakes this in at build time (see modelgate-web/Dockerfile) — it
         # must be the browser-reachable gateway URL, not the internal
         # nginx:80 hostname Streamlit uses server-side, since this runs in
         # the user's browser, not inside the Docker network.

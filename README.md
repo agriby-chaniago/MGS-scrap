@@ -4,7 +4,9 @@
 
 Platform audit kualitas dataset Computer Vision berbasis microservices. Upload dataset ZIP, jalankan audit otomatis (corruption, resolution, distribution, duplikat), dan dapatkan laporan dengan Health Score.
 
-> **Konteks:** Project ini dikembangkan untuk UAS mata kuliah **Web Service** dan **Pemrograman Berbasis Platform** (S1 Informatika, Semester 6). Lihat [Kaitan ke Mata Kuliah](#kaitan-ke-mata-kuliah) di bagian bawah untuk pemetaan fitur ke konsep tiap mata kuliah, dan [`VIDEO_SCRIPT.md`](VIDEO_SCRIPT.md) / [`SLIDES.pdf`](SLIDES.pdf) untuk materi presentasi.
+> **Sedang direstrukturisasi** menjadi **MGS** (spesifikasi terbuka untuk evaluasi kualitas dataset CV) + **ModelGate** (reference implementation-nya) — lihat [`ROADMAP.md`](ROADMAP.md) dan [`BACKLOG.md`](BACKLOG.md) untuk arah dan status pengerjaannya, serta [`specs/mgs/`](specs/mgs/) untuk draf spesifikasinya. README ini masih mendeskripsikan kondisi sebelum restrukturisasi selesai — akan diperbarui penuh begitu Fase 4/7 (lihat ROADMAP) tercapai.
+>
+> Project ini awalnya dikembangkan untuk UAS mata kuliah **Web Service** dan **Pemrograman Berbasis Platform** (S1 Informatika, Semester 6). Materi presentasi UAS asli (PRD, slide, video script) diarsipkan di [`docs/uas-archive/`](docs/uas-archive/), tidak dihapus.
 
 ---
 
@@ -118,9 +120,13 @@ Perhatikan di laporan Free tier: komponen **Uniqueness** dan **Distribution** di
 
 ### 1. Clone & konfigurasi
 
+> Sejak restrukturisasi monorepo (Fase 1), seluruh stack server ada di
+> `packages/modelgate-server/` — perintah di bawah dijalankan dari situ,
+> bukan dari root repo.
+
 ```bash
 git clone <repo-url>
-cd MGS
+cd MGS/packages/modelgate-server
 cp .env.example .env
 ```
 
@@ -193,24 +199,30 @@ docker compose ps
 
 Ditujukan untuk paket Pro/Max, tanpa perlu buka browser sama sekali.
 
+> **Catatan:** ini adalah CLI lama yang bicara ke `modelgate-server` lewat
+> HTTP (API Key, JWT). CLI baru yang memanggil `modelgate-core` langsung
+> tanpa server (`modelgate check ./data`) dibangun di Fase 4 — lihat
+> [`ROADMAP.md`](ROADMAP.md). Path di bawah sudah disesuaikan dengan
+> lokasi barunya di `packages/modelgate-server/cli/`.
+
 ```bash
 # 1. Generate API Key dari browser — panel "API Key" di sidebar (Pro/Max saja)
 
 # 2. Install dependency CLI (sekali saja)
-pip install -r cli/requirements.txt
+pip install -r packages/modelgate-server/cli/requirements.txt
 
 # 3. Simpan API Key (langsung tervalidasi saat itu juga)
-python3 cli/mgs.py configure --key mg_live_xxxxxxxx --base-url http://localhost:8080
+python3 packages/modelgate-server/cli/mgs.py configure --key mg_live_xxxxxxxx --base-url http://localhost:8080
 
 # 4. Jalankan audit end-to-end dalam satu command
-python3 cli/mgs.py run dataset.zip --pdf
+python3 packages/modelgate-server/cli/mgs.py run dataset.zip --pdf
 ```
 
 Command lain yang tersedia: `mgs upload`, `mgs audit <dataset_id>`, `mgs status <audit_id>`, `mgs report <audit_id> --pdf`. Jalankan `mgs --help` untuk panduan lengkap.
 
-Tips: tambahkan alias biar tidak perlu ketik `python3 cli/mgs.py` setiap saat:
+Tips: tambahkan alias biar tidak perlu ketik path lengkap setiap saat:
 ```bash
-echo 'alias mgs="python3 '"$(pwd)"'/cli/mgs.py"' >> ~/.zshrc   # atau ~/.bashrc
+echo 'alias mgs="python3 '"$(pwd)"'/packages/modelgate-server/cli/mgs.py"' >> ~/.zshrc   # atau ~/.bashrc
 ```
 
 ---
@@ -278,7 +290,7 @@ Semua endpoint di atas (kecuali `/api/v1/auth/register` dan `/api/v1/auth/login`
 
 ## Horizontal Scaling
 
-`analysis_service` terhubung ke RabbitMQ sebagai consumer — menjalankan lebih dari satu instance otomatis membagi beban tanpa kode load-balancing tambahan:
+`analysis_service` terhubung ke RabbitMQ sebagai consumer — menjalankan lebih dari satu instance otomatis membagi beban tanpa kode load-balancing tambahan (jalankan dari `packages/modelgate-server/`):
 
 ```bash
 docker compose up -d --scale analysis_service=3
@@ -298,6 +310,9 @@ docker compose up -d --scale analysis_service=1
 ---
 
 ## Development
+
+> Semua perintah `docker compose` di bagian ini dijalankan dari
+> `packages/modelgate-server/`.
 
 ### Rebuild satu service
 
@@ -324,32 +339,47 @@ docker compose down -v       # Matikan + hapus semua data (reset total)
 
 ### Struktur direktori
 
+Direstrukturisasi jadi monorepo di Fase 1 (lihat [`ROADMAP.md`](ROADMAP.md)) — `modelgate-core` adalah pusatnya (G3 di [`BACKLOG.md`](BACKLOG.md)), semua yang lain jadi consumer-nya:
+
 ```
 MGS/
-├── dataset_service/    FastAPI — upload & dataset management
-├── audit_service/      FastAPI — audit orchestration + WebSocket + RabbitMQ publisher
-├── analysis_service/   FastAPI — 5 image analyzers + RabbitMQ consumer (scalable)
-├── report_service/     FastAPI — health score + PDF generation
-├── auth_service/       FastAPI — JWT, API Key, tier — baru untuk UAS
-├── frontend/            React + Vite + Tailwind — UI baru
-├── streamlit_app/      Streamlit UI — dipertahankan paralel
-├── cli/                 mgs.py — CLI Python untuk akses terprogram
-├── shared/              Kode bersama (response format, dll)
-├── nginx/               nginx.conf (API gateway: auth_request, rate limit, CORS)
-├── rabbitmq/             Dockerfile custom (plugin Prometheus)
-├── observability/        Konfigurasi Prometheus + provisioning Grafana
-├── docs/                API documentation (RapiDoc)
-│   ├── index.html          UI docs
-│   ├── rapidoc-min.js      RapiDoc bundled (offline)
-│   ├── generate_specs.sh   Refresh OpenAPI specs dari running services
-│   └── openapi/            OpenAPI 3.0 JSON per service
-├── .github/workflows/   CI/CD — build & push image ke GHCR
-├── docker-compose.yml
-├── ARCHITECTURE.md      Detail arsitektur & keputusan desain
-├── PRD.md               Product requirements
-├── VIDEO_SCRIPT.md      Script presentasi UAS
-├── SLIDES.md / SLIDES.pdf  Slide presentasi (format Marp)
-└── .env.example         Template konfigurasi (salin ke .env)
+├── packages/
+│   ├── modelgate-core/          Reference implementation MGS — pure Python,
+│   │                            zero dependency infra. Reader → Manifest →
+│   │                            Checker → Report. Fase 2 di ROADMAP.md
+│   │                            (skeleton packaging sudah ada, pipeline-nya
+│   │                            belum — lihat pyproject.toml di dalamnya)
+│   ├── modelgate-server/        Stack microservice (hosted deployment)
+│   │   ├── dataset_service/     FastAPI — upload & dataset management
+│   │   ├── audit_service/       FastAPI — audit orchestration + WebSocket + RabbitMQ publisher
+│   │   ├── analysis_service/    FastAPI — 5 analyzer (akan panggil modelgate-core di Fase 5) + RabbitMQ consumer (scalable)
+│   │   ├── report_service/      FastAPI — health score + PDF generation
+│   │   ├── auth_service/        FastAPI — JWT, API Key, tier (tier dihapus di Fase 5, lihat G8)
+│   │   ├── cli/                 mgs.py — CLI lama, bicara ke server lewat HTTP
+│   │   ├── shared/              Kode bersama (response format, dll) — khusus server, bukan core
+│   │   ├── nginx/                nginx.conf (API gateway: auth_request, rate limit, CORS)
+│   │   ├── rabbitmq/             Dockerfile custom (plugin Prometheus)
+│   │   ├── observability/        Konfigurasi Prometheus + provisioning Grafana
+│   │   ├── docker-compose.yml    Jalankan dari sini, bukan dari root
+│   │   └── .env.example          Template konfigurasi (salin ke .env)
+│   ├── modelgate-web/            React + Vite + Tailwind — UI utama
+│   ├── modelgate-streamlit/      UI lama — diarsipkan, tidak di-maintain aktif
+│   └── github-action/            GitHub Action — dibangun Fase 6
+├── specs/
+│   ├── mgs/                     Draf spesifikasi MGS (MGS-1.0-draft.md)
+│   └── LICENSE                  CC-BY-4.0, khusus untuk spec
+├── conformance/                  Korpus conformance — dibangun Fase 3
+├── docs/
+│   ├── uas-archive/              PRD, slide, video script UAS asli — diarsipkan
+│   ├── index.html                 API docs (RapiDoc)
+│   ├── rapidoc-min.js             RapiDoc bundled (offline)
+│   ├── generate_specs.sh          Refresh OpenAPI specs dari running services
+│   └── openapi/                  OpenAPI 3.0 JSON per service
+├── .github/workflows/            CI/CD — build & push image ke GHCR
+├── LICENSE                       Apache-2.0, untuk kode
+├── ARCHITECTURE.md               Detail arsitektur & keputusan desain
+├── BACKLOG.md                    Temuan + keputusan arsitektur (bagian G)
+└── ROADMAP.md                    Rencana restrukturisasi Fase 0-7
 ```
 
 ---

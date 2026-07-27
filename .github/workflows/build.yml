@@ -17,14 +17,24 @@ jobs:
       packages: write
     strategy:
       matrix:
-        service:
-          - dataset_service
-          - audit_service
-          - analysis_service
-          - report_service
-          - auth_service
-          - streamlit_app
-          - frontend
+        # `name` is the image/tag name (unchanged, so existing GHCR tags keep
+        # their history); `context` is the post-monorepo-restructure path
+        # (Fase 1) — the two diverged once services moved under packages/.
+        include:
+          - name: dataset_service
+            context: ./packages/modelgate-server/dataset_service
+          - name: audit_service
+            context: ./packages/modelgate-server/audit_service
+          - name: analysis_service
+            context: ./packages/modelgate-server/analysis_service
+          - name: report_service
+            context: ./packages/modelgate-server/report_service
+          - name: auth_service
+            context: ./packages/modelgate-server/auth_service
+          - name: streamlit_app
+            context: ./packages/modelgate-streamlit
+          - name: frontend
+            context: ./packages/modelgate-web
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,7 +52,7 @@ jobs:
       - name: Build args (frontend only)
         id: build_args
         run: |
-          if [ "${{ matrix.service }}" = "frontend" ]; then
+          if [ "${{ matrix.name }}" = "frontend" ]; then
             echo "args=VITE_API_BASE_URL=http://localhost:8080" >> "$GITHUB_OUTPUT"
           else
             echo "args=" >> "$GITHUB_OUTPUT"
@@ -55,9 +65,9 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./${{ matrix.service }}
+          context: ${{ matrix.context }}
           build-args: ${{ steps.build_args.outputs.args }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ${{ env.REGISTRY }}/${{ steps.owner.outputs.name }}/modelgate-${{ matrix.service }}:latest
-            ${{ env.REGISTRY }}/${{ steps.owner.outputs.name }}/modelgate-${{ matrix.service }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.name }}/modelgate-${{ matrix.name }}:latest
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.name }}/modelgate-${{ matrix.name }}:${{ github.sha }}
