@@ -88,6 +88,20 @@ def build_layout_variants() -> None:
     _write_zip("adhoc-flat-class.zip", flat)
     _write_zip("adhoc-split.zip", split)
 
+    # Fase 6 (ROADMAP.md): a plain-directory (ImageFolder) fixture, same
+    # content as the flat-class ZIP above (same seeds -> same bytes) —
+    # proves ImageFolderReader isn't a second, only-lightly-tested Reader
+    # bolted on next to ZipReader. Its dataset_hash MUST come out
+    # identical to adhoc-flat-class.zip's, since both describe the exact
+    # same logical Dataset (spec §2.3 — the hash is Reader-independent).
+    imagefolder_dir = os.path.join(FIXTURES_DIR, "imagefolder-equivalent")
+    for arcname, data in flat.items():
+        dest = os.path.join(imagefolder_dir, arcname)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        with open(dest, "wb") as f:
+            f.write(data)
+    print(f"wrote {imagefolder_dir}/ (directory fixture, {len(flat)} files)")
+
 
 def build_structure_fixtures() -> None:
     _write_zip(

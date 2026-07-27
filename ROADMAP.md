@@ -195,14 +195,37 @@ Plus: permukaan API publik dikunci (D5.1), `CHANGELOG.md` dimulai (H5), README r
 
 ---
 
-## Fase 6 — Ekosistem & rilis publik
+## Fase 6 — Ekosistem inti · ✅ CAKUPAN TERTUTUP SELESAI
 
-**Ukuran:** berkelanjutan
+**Ukuran:** aktual, satu sesi kerja lanjutan setelah Fase 5
 
-- GitHub Action (`modelgate-action`) — sekaligus runner conformance keempat
-- Reader tambahan: COCO, YOLO, HuggingFace (F5)
-- Zenodo DOI (D5) — **putuskan F8 sebelum DOI pertama terbit**
-- `CONTRIBUTING.md`, template issue/PR (H5)
+**Koreksi dari draf pertama:** header lama fase ini ("Ekosistem & rilis publik", "berkelanjutan") sempat menggantung tanpa garis finish. Dipersempit jadi cakupan tertutup di bawah — reader tambahan (COCO/YOLO/HF) sengaja **ditunda ke pasca-Fase-7**, bukan bagian gerbang ini (alasan sama seperti sebelumnya: MGS-1.0 dirancang untuk dataset klasifikasi gaya folder, COCO adalah format deteksi objek yang butuh perluasan requirement, bukan cuma Reader baru).
+
+**Selesai:**
+- `packages/github-action/action.yml` — composite action, menjalankan `modelgate check --spec --json`, expose `overall-verdict` + `report-json` sebagai output
+- `conformance/action_client.py` — mereplay langkah-langkah `action.yml` secara lokal (bukan cuma alias CLI), termasuk format `$GITHUB_OUTPUT` multiline milik GitHub sendiri, diverifikasi lewat eksekusi nyata bukan cuma dibaca. **Diverifikasi 13/13 fixture identik dengan `modelgate-core`.** (Catatan jujur: menjalankan di GitHub Actions runner asli belum terverifikasi dari sandbox ini — tidak ada `act` maupun sesi `gh auth` — baru terbukti setelah push memicu CI sungguhan.)
+- CI: `.github/workflows/conformance.yml` sekarang juga menjalankan korpus lewat `action_client.py` sebagai langkah terpisah — bukan cuma CLI langsung
+- **Reader ImageFolder dibuktikan formal**, bukan cuma "sudah ada sejak Fase 2": fixture direktori baru `conformance/fixtures/imagefolder-equivalent/` (isi identik dengan `adhoc-flat-class.zip`) menghasilkan `dataset_hash` **sama persis** — G5 terbukti lintas Reader, bukan cuma lintas antarmuka. `runner.py` diperluas mengenali fixture direktori, tidak cuma `.zip`
+- `server_client.py` diperluas: zip direktori on-the-fly sebelum upload (endpoint HTTP server memang hanya menerima ZIP — keputusan desain API yang sah, bukan celah) — hasil tetap identik byte-per-byte
+- `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `.github/ISSUE_TEMPLATE/{bug_report,spec_change}.md`, `.github/PULL_REQUEST_TEMPLATE.md`
+- `specs/mgs/SUPPORT-MATRIX.md` — matriks dukungan versi tool↔spec (C7), didokumentasikan sebagai living document yang wajib diupdate tiap rilis, bukan sekali tulis lalu basi
+
+**Bukti akhir — empat antarmuka, satu korpus, hasil identik:**
+
+| Antarmuka | Mekanisme | Hasil |
+|---|---|---|
+| `modelgate-core` | impor Python langsung | 13/13 OK (baseline) |
+| CLI | subprocess `modelgate check` | 13/13 OK |
+| Server | HTTP (`server_client.py`) | 13/13 OK, termasuk `dataset_hash` sama persis |
+| GitHub Action | replay langkah `action.yml` | 13/13 OK |
+
+**Exit criteria (gerbang Fase 7) — terpenuhi:**
+- ✅ GitHub Action lolos korpus conformance yang sama seperti core/CLI/server
+- ✅ Reader ImageFolder jalan lewat kontrak yang sama seperti ZIP, dibuktikan bukan diasumsikan
+- ✅ `CONTRIBUTING.md` dkk ada
+- ✅ Matriks versi terdokumentasi
+
+**Zenodo DOI TIDAK diterbitkan di sini** — tetap ditahan sampai Fase 7d, sesuai keputusan awal.
 
 ---
 

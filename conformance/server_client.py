@@ -16,9 +16,12 @@ auth_service/routers/internal.py), so no credentials are needed.
 """
 
 import argparse
+import io
 import json
+import os
 import sys
 import time
+import zipfile
 
 import requests
 
@@ -42,14 +45,37 @@ def _request_with_backoff(method: str, url: str, **kwargs) -> requests.Response:
     return resp
 
 
+def _zip_directory_in_memory(dir_path: str) -> bytes:
+    """The server's upload endpoint only ever accepts a single ZIP file
+    (a real HTTP API, unlike a CLI, can't take an arbitrary directory as
+    input) — that's a legitimate API design choice, not a gap. To still
+    run an ImageFolder fixture through the server for G5 comparison, zip
+    it on the fly here, client-side. This isn't cheating the comparison:
+    modelgate-core's ZipReader will read the exact same files back out
+    on the server side, and dataset_hash is already proven Reader-
+    independent (see conformance/fixtures/generate.py's ImageFolder
+    fixture matching its ZIP equivalent's hash exactly)."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        for root, _dirs, files in os.walk(dir_path):
+            for fname in files:
+                full = os.path.join(root, fname)
+                arcname = os.path.relpath(full, dir_path)
+                zf.write(full, arcname)
+    return buf.getvalue()
+
+
 def check(path: str) -> dict:
-    # Read the whole file into memory up front, not a file handle — a
-    # retried request (rate-limit backoff) re-reading an already-EOF'd
-    # file handle would silently send an empty body on the second
-    # attempt. Small fixtures only (this is a conformance corpus, not
-    # meant for multi-gigabyte datasets), so this is fine here.
-    with open(path, "rb") as f:
-        file_bytes = f.read()
+    if os.path.isdir(path):
+        file_bytes = _zip_directory_in_memory(path)
+    else:
+        # Read the whole file into memory up front, not a file handle —
+        # a retried request (rate-limit backoff) re-reading an
+        # already-EOF'd file handle would silently send an empty body on
+        # the second attempt. Small fixtures only (this is a conformance
+        # corpus, not meant for multi-gigabyte datasets), so this is fine.
+        with open(path, "rb") as f:
+            file_bytes = f.read()
 
     upload_resp = _request_with_backoff(
         "POST",

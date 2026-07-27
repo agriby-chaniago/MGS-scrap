@@ -13,7 +13,7 @@ on:
     branches: [main]
 
 jobs:
-  conformance:
+  conformance-core:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,5 +27,14 @@ jobs:
       - name: Install modelgate-core
         run: pip install -e packages/modelgate-core
 
-      - name: Run conformance corpus
+      - name: Run conformance corpus (direct CLI — first interface)
         run: python3 conformance/runner.py
+
+      - name: Run conformance corpus (GitHub Action's own steps — Fase 6)
+        # This exercises packages/github-action/action.yml's actual logic
+        # (via conformance/action_client.py, which replays the same
+        # steps), not just the CLI a second time — a fourth interface
+        # proving G5 (BACKLOG.md), alongside core/CLI (direct import) and
+        # server (conformance/server_client.py, run manually — the full
+        # Docker stack it needs isn't set up in this CI job).
+        run: python3 conformance/runner.py --tool "python3 conformance/action_client.py"

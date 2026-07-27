@@ -86,7 +86,16 @@ def main() -> int:
     tool_cmd = args.tool.split()
 
     os.makedirs(EXPECTED_DIR, exist_ok=True)
-    fixture_names = sorted(f for f in os.listdir(FIXTURES_DIR) if f.endswith(".zip"))
+    # Fixtures are either a .zip file or a directory (Fase 6, ROADMAP.md —
+    # ImageFolderReader gets exercised through the same corpus as
+    # ZipReader, not left untested next to it). generate.py itself lives
+    # in this directory too and is deliberately excluded.
+    fixture_names = sorted(
+        f
+        for f in os.listdir(FIXTURES_DIR)
+        if f.endswith(".zip")
+        or os.path.isdir(os.path.join(FIXTURES_DIR, f))
+    )
 
     if not fixture_names:
         print("no fixtures found", file=sys.stderr)
@@ -95,7 +104,8 @@ def main() -> int:
     failures: list[tuple[str, str]] = []
     for name in fixture_names:
         fixture_path = os.path.join(FIXTURES_DIR, name)
-        expected_path = os.path.join(EXPECTED_DIR, name.replace(".zip", ".json"))
+        expected_name = name[:-4] + ".json" if name.endswith(".zip") else name + ".json"
+        expected_path = os.path.join(EXPECTED_DIR, expected_name)
 
         try:
             actual = normalize(run_tool(tool_cmd, fixture_path))

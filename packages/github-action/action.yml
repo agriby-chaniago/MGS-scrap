@@ -1,0 +1,88 @@
+name: 'MGS Check'
+description: >
+  Evaluate a Computer Vision dataset against MGS (Model Gate Specification)
+  using modelgate, the reference implementation. Fails the step (non-zero
+  exit) unless the dataset's overall verdict is PASS.
+author: 'ModelGate'
+branding:
+  icon: 'check-square'
+  color: 'green'
+
+inputs:
+  path:
+    description: 'Path to the dataset (a ZIP file or a plain ImageFolder-layout directory)'
+    required: true
+  spec:
+    description: 'MGS spec version to pin (e.g. mgs-1.0). Fails the step if this build does not implement it (spec §8), rather than silently evaluating a different version.'
+    required: false
+    default: 'mgs-1.0'
+  install-source:
+    description: >
+      Where to install modelgate from. "pypi" (default, once released —
+      see ROADMAP.md Fase 7) or a local path to modelgate-core for
+      development/testing this action from within this monorepo before
+      that release exists.
+    required: false
+    default: 'pypi'
+  python-version:
+    description: 'Python version to run modelgate under'
+    required: false
+    default: '3.11'
+
+outputs:
+  report-json:
+    description: 'The full MGS Report, as JSON (spec §4)'
+    value: ${{ steps.check.outputs.report-json }}
+  overall-verdict:
+    description: 'PASS, FAIL, or NOT_EVALUATED'
+    value: ${{ steps.check.outputs.overall-verdict }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install modelgate
+      shell: bash
+      run: |
+        if [ "${{ inputs.install-source }}" = "pypi" ]; then
+          pip install modelgate
+        else
+          pip install "${{ inputs.install-source }}"
+        fi
+
+    - name: Run modelgate check
+      id: check
+      shell: bash
+      run: |
+        set +e
+        modelgate check "${{ inputs.path }}" --spec "${{ inputs.spec }}" --json > report.json
+        exit_code=$?
+        set -e
+
+        report_json=$(cat report.json)
+        echo "report-json<<MGS_REPORT_EOF" >> "$GITHUB_OUTPUT"
+        echo "$report_json" >> "$GITHUB_OUTPUT"
+        echo "MGS_REPORT_EOF" >> "$GITHUB_OUTPUT"
+
+        overall=$(python3 -c "
+import json
+with open('report.json') as f:
+    report = json.load(f)
+verdicts = {r['verdict'] for r in report['requirements'] if r.get('verdict')}
+if 'FAIL' in verdicts:
+    print('FAIL')
+elif verdicts - {'PASS'}:
+    print('NOT_EVALUATED')
+elif verdicts:
+    print('PASS')
+else:
+    print('NOT_EVALUATED')
+")
+        echo "overall-verdict=$overall" >> "$GITHUB_OUTPUT"
+
+        cat report.json
+        exit $exit_code
