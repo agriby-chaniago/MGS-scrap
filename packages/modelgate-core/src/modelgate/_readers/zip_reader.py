@@ -14,7 +14,7 @@ import tempfile
 import zipfile
 
 from modelgate.manifest import Manifest, Sample, compute_dataset_hash, sha256_file, SPEC_VERSION
-from modelgate.readers._structure import detect_structure, is_image_path
+from modelgate._readers._structure import detect_structure, is_image_path
 
 
 class ZipReader:

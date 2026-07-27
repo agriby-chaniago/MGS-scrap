@@ -2,34 +2,93 @@
 
 **Repository:** https://github.com/agriby-chaniago/MGS
 
-Platform audit kualitas dataset Computer Vision berbasis microservices. Upload dataset ZIP, jalankan audit otomatis (corruption, resolution, distribution, duplikat), dan dapatkan laporan dengan Health Score.
+A Computer Vision dataset quality audit platform. Originally built as a
+microservice-based web app; being restructured into **MGS** (Model Gate
+Specification — an open spec for CV dataset quality) plus **ModelGate**
+(its reference implementation), library/CLI-first.
 
-> **Sedang direstrukturisasi** menjadi **MGS** (spesifikasi terbuka untuk evaluasi kualitas dataset CV) + **ModelGate** (reference implementation-nya) — lihat [`ROADMAP.md`](ROADMAP.md) dan [`BACKLOG.md`](BACKLOG.md) untuk arah dan status pengerjaannya, serta [`specs/mgs/`](specs/mgs/) untuk draf spesifikasinya. README ini masih mendeskripsikan kondisi sebelum restrukturisasi selesai — akan diperbarui penuh begitu Fase 4/7 (lihat ROADMAP) tercapai.
+> **Under active restructuring.** See [`ROADMAP.md`](ROADMAP.md) and
+> [`BACKLOG.md`](BACKLOG.md) for the direction and current status, and
+> [`specs/mgs/MGS-1.0.md`](specs/mgs/MGS-1.0.md) for the frozen spec.
+> Fase 0–3 are done: the monorepo layout exists, `modelgate-core` (the
+> Reader → Manifest → Checker → Report pipeline) is real and passes its
+> own conformance corpus, and MGS 1.0 is frozen. The tier system and
+> microservice details described further down this README still reflect
+> the **pre-restructuring** server — that part isn't touched until Fase
+> 5. This README will be split/simplified once Fase 7 (public release)
+> lands.
 >
-> Project ini awalnya dikembangkan untuk UAS mata kuliah **Web Service** dan **Pemrograman Berbasis Platform** (S1 Informatika, Semester 6). Materi presentasi UAS asli (PRD, slide, video script) diarsipkan di [`docs/uas-archive/`](docs/uas-archive/), tidak dihapus.
+> This project started as a coursework submission for **Web Service**
+> and **Platform-Based Programming** (Informatics, semester 6) at a
+> university. The original presentation materials (PRD, slides, video
+> script) are preserved, unchanged, at
+> [`docs/uas-archive/`](docs/uas-archive/).
 
 ---
 
-## Fitur Utama
+## Quick start — library/CLI (the new, primary way)
 
-**Inti (audit dataset):**
-- Upload dataset ZIP, validasi struktur otomatis, dedup via SHA-256
-- 5 analyzer: corruption, empty, resolution, distribution, duplicate (pHash)
-- Health Score dengan grade A–F, laporan PDF
-- Progress audit real-time (WebSocket)
+This is what Fase 0–4 of the restructuring actually built. No Docker,
+no server, just a Python package:
 
-**Ditambahkan untuk UAS:**
-- Autentikasi JWT dengan 3 tier paket (Free / Pro / Max), masing-masing beda batas upload, jumlah analyzer, kuota harian, dan akses PDF
-- API Key + CLI (`mgs`) untuk akses terprogram, di luar browser
-- Frontend baru berbasis React + Vite + Tailwind (paralel dengan Streamlit lama, dua-duanya tetap jalan)
-- Rate limiting di API Gateway (Nginx)
-- Observability — Prometheus + Grafana (dashboard siap pakai)
-- Horizontal scaling pada service analisis gambar
-- CI/CD — GitHub Actions build & push image ke GHCR
+```bash
+cd packages/modelgate-core
+pip install -e .          # will be `pip install modelgate` once released — see ROADMAP.md Fase 7
+
+modelgate check ./my_dataset.zip --spec mgs-1.0
+modelgate check ./my_dataset.zip --json > report.json
+```
+
+Supports a ZIP archive or a plain directory (ImageFolder layout), in any
+of the class-folder arrangements MGS's Reader recognizes (single root
+folder, flat class folders, or `train/`/`test/`/etc. splits — see
+`specs/mgs/MGS-1.0.md` §2). Exits non-zero on anything but a clean
+`PASS`, so it's usable directly as a CI gate.
+
+From Python:
+
+```python
+from modelgate import audit
+
+report = audit("./my_dataset.zip")
+print(report.overall_verdict)          # PASS / FAIL / NOT_EVALUATED
+for r in report.requirements:
+    print(r.id, r.verdict, r.metrics)
+```
+
+See [`packages/modelgate-core/README.md`](packages/modelgate-core/README.md)
+for the stable API surface, and `conformance/` for the fixture corpus
+that proves this pipeline's output is reproducible, not just claimed to
+be.
+
+Everything below this point describes the **hosted server stack**
+(`packages/modelgate-server/` — FastAPI microservices, Postgres, MinIO,
+RabbitMQ, React/Streamlit UIs), which is a separate, optional way to run
+audits through a browser. It still has the pre-restructuring tier system
+(Free/Pro/Max) described below; that's removed in Fase 5.
 
 ---
 
-## Arsitektur
+## Key Features
+
+**Core (dataset audit):**
+- Upload a dataset ZIP, automatic structure validation, SHA-256 dedup
+- 5 analyzers: corruption, empty, resolution, distribution, duplicate (pHash)
+- Health Score with A–F grade, PDF report
+- Real-time audit progress (WebSocket)
+
+**Added for the original coursework submission:**
+- JWT auth with 3 paid tiers (Free / Pro / Max), each with different upload limits, analyzer count, daily quota, and PDF access
+- API key + CLI (`mgs`) for programmatic access outside the browser
+- New React + Vite + Tailwind frontend (parallel to the older Streamlit UI, both still work)
+- Rate limiting at the API gateway (Nginx)
+- Observability — Prometheus + Grafana (ready-made dashboard)
+- Horizontal scaling for the image-analysis service
+- CI/CD — GitHub Actions build & push images to GHCR
+
+---
+
+## Architecture (server stack)
 
 ```
 Browser ──┬─→ React (3000)
@@ -46,83 +105,93 @@ Browser ──┬─→ React (3000)
 
 CLI (mgs) ──→ Nginx (8080), via API Key
 
-Prometheus (9090) ──scrape──→ semua service + RabbitMQ
+Prometheus (9090) ──scrape──→ all services + RabbitMQ
 Grafana (3001) ──query──→ Prometheus
 ```
 
-| Service | Port | Fungsi |
+| Service | Port | Function |
 |---|---|---|
-| React frontend | 3000 | UI baru (Tailwind, WebSocket live progress) |
-| Streamlit | 8501 | UI lama (tetap dipertahankan) |
+| React frontend | 3000 | Newer UI (Tailwind, WebSocket live progress) |
+| Streamlit | 8501 | Older UI (still functional) |
 | Nginx | 8080 | API Gateway — auth, rate limit, routing |
-| dataset_service | 8001 | Upload & manajemen dataset |
-| audit_service | 8002 | Orkestrasi audit, WebSocket broadcast |
-| analysis_service | 8003 | Analisis gambar (5 analyzer), consumer RabbitMQ |
-| report_service | 8004 | Laporan, Health Score, PDF |
-| auth_service | 8005 | JWT, API Key, tier — **baru untuk UAS** |
-| PostgreSQL | 5432 | Database utama (1 DB, schema terpisah per service) |
-| MinIO | 9000/9001 | Object storage (gambar) |
+| dataset_service | 8001 | Dataset upload & management |
+| audit_service | 8002 | Audit orchestration, WebSocket broadcast |
+| analysis_service | 8003 | Image analysis (5 analyzers), RabbitMQ consumer |
+| report_service | 8004 | Reports, Health Score, PDF |
+| auth_service | 8005 | JWT, API key, tiers — **added for coursework, removed in Fase 5** |
+| PostgreSQL | 5432 | Main database (1 DB, separate schema per service) |
+| MinIO | 9000/9001 | Object storage (images) |
 | RabbitMQ | 5672/15672/15692 | Message queue + metrics plugin |
 | Prometheus | 9090 | Metrics collection |
-| Grafana | 3001 | Dashboard observability |
+| Grafana | 3001 | Observability dashboard |
 | pgAdmin | 5050 | Database admin UI |
 
-Prinsip arsitektur: **bounded context** — tiap service hanya menulis ke schema database miliknya sendiri; baca lintas service pakai model *read-only mirror*. Nginx hanya melakukan **autentikasi** (siapa kamu), **otorisasi** (boleh apa) tetap jadi tanggung jawab masing-masing service. Detail lengkap ada di [`ARCHITECTURE.md`](ARCHITECTURE.md).
+Architecture principle: **bounded context** — each service only writes to
+its own database schema; cross-service reads use a *read-only mirror*
+model. Nginx only handles **authentication** (who you are); **authorization**
+(what you're allowed to do) stays each service's own responsibility. Full
+detail in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ---
 
-## Paket / Tier
+## Plans / Tiers (server stack — removed in Fase 5, see BACKLOG.md G8)
 
-| Tier | Upload Maks | Analyzer | Kuota Audit/Hari | Download PDF |
+| Tier | Max Upload | Analyzers | Daily Audit Quota | PDF Download |
 |---|---|---|---|---|
-| **Free** | 150MB | 3 dari 5 | 3 | ✗ |
+| **Free** | 150MB | 3 of 5 | 3 | ✗ |
 | **Pro** | 1024MB | 5 | 20 | ✓ |
-| **Max** | 2048MB | 5 | Tidak terbatas | ✓ |
+| **Max** | 2048MB | 5 | Unlimited | ✓ |
 
-Semua akun baru default **Free**. Upgrade bisa dilakukan sendiri lewat tombol di sidebar aplikasi (tanpa pembayaran sungguhan — ini demo/UAS scope) atau lewat API `POST /api/v1/auth/upgrade`.
+All new accounts default to **Free**. Upgrading is self-service via a
+button in the app sidebar (no real payment — demo/coursework scope only)
+or via the `POST /api/v1/auth/upgrade` API.
 
 ---
 
-## Screenshot
+## Screenshots
 
 | | |
 |---|---|
 | **Login** | **Register** |
 | ![Login](docs/screenshots/01-login.png) | ![Register](docs/screenshots/02-register.png) |
-| **Upload dataset (Free tier)** | **Mulai audit** |
+| **Upload dataset (Free tier)** | **Start audit** |
 | ![Upload](docs/screenshots/03-wizard-upload-free.png) | ![Audit start](docs/screenshots/04-audit-start.png) |
-| **Progress audit real-time (WebSocket)** | **Laporan — Free tier** |
+| **Real-time audit progress (WebSocket)** | **Report — Free tier** |
 | ![Audit progress](docs/screenshots/05-audit-progress.png) | ![Report free](docs/screenshots/06-report-free.png) |
 
-Perhatikan di laporan Free tier: komponen **Uniqueness** dan **Distribution** ditandai jelas **"Tidak diaudit"** (bergaris, bukan angka) karena analyzer `duplicate` dan `distribution` tidak jalan di paket Free — bukan otomatis dianggap sempurna (nilai 1.00 semu). Ini perbaikan atas bug transparansi Health Score yang ditemukan saat pengujian.
+Note in the Free-tier report: the **Uniqueness** and **Distribution**
+components are clearly marked **"Not audited"** (dashed, not a number)
+because the `duplicate` and `distribution` analyzers don't run on the
+Free plan — not silently treated as a perfect score of 1.00. This fixed a
+Health Score transparency bug found during testing.
 
 | | |
 |---|---|
-| **Upgrade ke Max** | **Generate API Key untuk CLI** |
+| **Upgrade to Max** | **Generate an API key for the CLI** |
 | ![Upgraded](docs/screenshots/07-upgraded-max.png) | ![API key panel](docs/screenshots/08-apikey-panel.png) |
-| **Laporan — Max tier (semua analyzer + PDF)** | **Konfirmasi hapus dataset** |
+| **Report — Max tier (all analyzers + PDF)** | **Delete dataset confirmation** |
 | ![Report max](docs/screenshots/09-report-max-pdf.png) | ![Delete confirm](docs/screenshots/10-delete-confirm.png) |
-| **Grafana — dashboard observability** | **Prometheus — status target** |
+| **Grafana — observability dashboard** | **Prometheus — target status** |
 | ![Grafana](docs/screenshots/11-grafana.png) | ![Prometheus](docs/screenshots/12-prometheus.png) |
 
 ---
 
-## Requirements
+## Requirements (server stack)
 
 - Docker & Docker Compose
-- 4GB RAM minimum (dataset besar butuh lebih)
-- Python 3.11+ dan Node.js 20+ jika ingin develop di luar Docker
-- Port 3000, 3001, 5050, 8080, 8501, 9000, 9001, 9090, 15672 tidak dipakai proses lain
+- 4GB RAM minimum (large datasets need more)
+- Python 3.11+ and Node.js 20+ if developing outside Docker
+- Ports 3000, 3001, 5050, 8080, 8501, 9000, 9001, 9090, 15672 free
 
 ---
 
-## Cara Menjalankan
+## Running the server stack
 
-### 1. Clone & konfigurasi
+### 1. Clone & configure
 
-> Sejak restrukturisasi monorepo (Fase 1), seluruh stack server ada di
-> `packages/modelgate-server/` — perintah di bawah dijalankan dari situ,
-> bukan dari root repo.
+> Since the Fase 1 monorepo restructuring, the whole server stack lives
+> in `packages/modelgate-server/` — run the commands below from there,
+> not from the repo root.
 
 ```bash
 git clone <repo-url>
@@ -130,31 +199,37 @@ cd MGS/packages/modelgate-server
 cp .env.example .env
 ```
 
-File `.env` berisi kredensial default untuk development, termasuk `JWT_SECRET`. **Jangan commit `.env` ke repository** (sudah di-gitignore).
+`.env` holds default dev credentials, including `JWT_SECRET`. **Don't
+commit `.env`** (already gitignored).
 
-### 2. Jalankan semua service
+### 2. Start every service
 
 ```bash
 docker compose up -d --build
-docker compose restart nginx   # WAJIB setiap habis --build, lihat catatan di bawah
+docker compose restart nginx   # REQUIRED after every --build, see note below
 ```
 
-Tunggu sampai semua container healthy (±1-2 menit, terutama PostgreSQL dan RabbitMQ). Cek status:
+Wait for every container to report healthy (~1-2 minutes, especially
+Postgres and RabbitMQ). Check status:
 
 ```bash
 docker compose ps
 ```
 
-> **Penting — gotcha yang sering ketemu:** Nginx pakai image resmi (`nginx:alpine`), bukan hasil build sendiri. Kalau ada service lain yang di-`--build` ulang, container itu dapat IP baru, tapi Nginx tidak otomatis tahu — **selalu jalankan `docker compose restart nginx` setelah rebuild service apapun**, atau request akan gagal dengan 502.
+> **Important — a common gotcha:** Nginx uses the stock image
+> (`nginx:alpine`), not a custom build. If any other service gets
+> rebuilt with `--build`, that container gets a new IP, but Nginx
+> doesn't automatically know — **always run `docker compose restart
+> nginx` after rebuilding any service**, or requests will fail with 502.
 
-### 3. Akses aplikasi
+### 3. Access the app
 
-| URL | Keterangan |
+| URL | Purpose |
 |---|---|
-| http://localhost:3000 | Frontend React (baru) |
-| http://localhost:8501 | Frontend Streamlit (lama, tetap berfungsi) |
+| http://localhost:3000 | React frontend (newer) |
+| http://localhost:8501 | Streamlit frontend (older, still works) |
 | http://localhost:8080 | API Gateway (Nginx) |
-| http://localhost:8080/docs/ | API Documentation (RapiDoc) |
+| http://localhost:8080/docs/ | API documentation (RapiDoc) |
 | http://localhost:3001 | Grafana (`admin` / `admin`) |
 | http://localhost:9090 | Prometheus |
 | http://localhost:9001 | MinIO Console (`minioadmin` / `minioadmin123`) |
@@ -163,141 +238,155 @@ docker compose ps
 
 ---
 
-## Alur Penggunaan
+## Usage flow (server stack)
 
-### Lewat Browser (React atau Streamlit)
+### Via browser (React or Streamlit)
 
 ```
-1. Daftar / Login
-   └── Akun baru otomatis paket Free
+1. Register / Log in
+   └── New accounts default to the Free plan
 
-2. (Opsional) Upgrade Paket
-   └── Tombol "Upgrade ke Pro/Max" di sidebar — self-service, tanpa pembayaran
+2. (Optional) Upgrade plan
+   └── "Upgrade to Pro/Max" button in the sidebar — self-service, no payment
 
-3. Upload Dataset ZIP
-   └── Format: ZIP berisi subfolder per kelas
-       Contoh: dataset.zip/cats/, dataset.zip/dogs/
-       Batas ukuran sesuai paket (lihat tabel Tier)
+3. Upload a dataset ZIP
+   └── Format: ZIP containing one subfolder per class
+       Example: dataset.zip/cats/, dataset.zip/dogs/
+       Size limit depends on plan (see Plans table)
 
-4. Jalankan Audit
-   └── Analyzer yang jalan ditentukan otomatis sesuai paket:
-       - Corruption  : deteksi file gambar rusak
-       - Empty       : deteksi folder/kelas kosong
-       - Resolution  : analisis distribusi resolusi
-       - Distribution: keseimbangan antar kelas (Gini)
-       - Duplicate   : deteksi gambar duplikat (pHash)
-   └── Progress ditampilkan real-time lewat WebSocket
+4. Run an audit
+   └── Which analyzers run is decided automatically by plan:
+       - Corruption   : detects broken image files
+       - Empty        : detects empty/near-empty class folders
+       - Resolution   : analyzes resolution distribution
+       - Distribution : class balance (Gini coefficient)
+       - Duplicate    : near-duplicate detection (pHash)
+   └── Progress shown live via WebSocket
 
-5. Lihat Laporan
-   └── Health Score (0-1) dengan grade A/B/C/D/F
-       Komponen: Integrity (30%), Uniqueness (25%),
-                 Distribution (25%), Quality (20%)
-       Download PDF (Pro/Max saja)
+5. View the report
+   └── Health Score (0-1) with an A/B/C/D/F grade
+       Components: Integrity (30%), Uniqueness (25%),
+                   Distribution (25%), Quality (20%)
+       PDF download (Pro/Max only)
 ```
 
-### Lewat CLI (`mgs`) — akses terprogram
+### Via CLI (`mgs`) — programmatic access to the server
 
-Ditujukan untuk paket Pro/Max, tanpa perlu buka browser sama sekali.
+For Pro/Max plans, no browser required at all.
 
-> **Catatan:** ini adalah CLI lama yang bicara ke `modelgate-server` lewat
-> HTTP (API Key, JWT). CLI baru yang memanggil `modelgate-core` langsung
-> tanpa server (`modelgate check ./data`) dibangun di Fase 4 — lihat
-> [`ROADMAP.md`](ROADMAP.md). Path di bawah sudah disesuaikan dengan
-> lokasi barunya di `packages/modelgate-server/cli/`.
+> **Note:** this is the *old* CLI, which talks to `packages/modelgate-server`
+> over HTTP (API key, JWT). It's distinct from the new
+> `modelgate check ./data` CLI built on `modelgate-core` (see the Quick
+> Start section above) — that one needs no server at all. Paths below
+> already reflect its new location at `packages/modelgate-server/cli/`.
 
 ```bash
-# 1. Generate API Key dari browser — panel "API Key" di sidebar (Pro/Max saja)
+# 1. Generate an API key from the browser — "API Key" panel in the sidebar (Pro/Max only)
 
-# 2. Install dependency CLI (sekali saja)
+# 2. Install the CLI's dependencies (once)
 pip install -r packages/modelgate-server/cli/requirements.txt
 
-# 3. Simpan API Key (langsung tervalidasi saat itu juga)
+# 3. Save the API key (validated immediately)
 python3 packages/modelgate-server/cli/mgs.py configure --key mg_live_xxxxxxxx --base-url http://localhost:8080
 
-# 4. Jalankan audit end-to-end dalam satu command
+# 4. Run a full audit end-to-end in one command
 python3 packages/modelgate-server/cli/mgs.py run dataset.zip --pdf
 ```
 
-Command lain yang tersedia: `mgs upload`, `mgs audit <dataset_id>`, `mgs status <audit_id>`, `mgs report <audit_id> --pdf`. Jalankan `mgs --help` untuk panduan lengkap.
+Other available commands: `mgs upload`, `mgs audit <dataset_id>`, `mgs
+status <audit_id>`, `mgs report <audit_id> --pdf`. Run `mgs --help` for
+the full guide.
 
-Tips: tambahkan alias biar tidak perlu ketik path lengkap setiap saat:
+Tip: add an alias so you don't have to type the full path every time:
 ```bash
-echo 'alias mgs="python3 '"$(pwd)"'/packages/modelgate-server/cli/mgs.py"' >> ~/.zshrc   # atau ~/.bashrc
+echo 'alias mgs="python3 '"$(pwd)"'/packages/modelgate-server/cli/mgs.py"' >> ~/.zshrc   # or ~/.bashrc
 ```
 
 ---
 
-## API Documentation
+## API Documentation (server stack)
 
-Dokumentasi interaktif tersedia via **RapiDoc** — buka `http://localhost:8080/docs/` saat stack jalan, atau buka `docs/index.html` langsung di browser (tanpa docker).
+Interactive docs are available via **RapiDoc** — open
+`http://localhost:8080/docs/` while the stack is running, or open
+`docs/index.html` directly in a browser (no Docker needed).
 
-### Refresh specs (opsional)
+### Refresh specs (optional)
 
-Setelah ada perubahan endpoint, generate ulang spec dari service yang sedang jalan:
+After changing any endpoint, regenerate the specs from the running services:
 
 ```bash
 bash docs/generate_specs.sh
 ```
 
-Lalu commit `docs/openapi/*.json`.
+Then commit `docs/openapi/*.json`.
 
 ---
 
-## API Endpoints
+## API Endpoints (server stack)
 
-### Auth Service — *baru untuk UAS*
+### Auth Service — *added for coursework, removed in Fase 5*
 ```
-POST   /api/v1/auth/register        Daftar akun baru (default paket Free)
-POST   /api/v1/auth/login           Login, dapat JWT
-GET    /api/v1/auth/me              Info akun yang sedang login
-POST   /api/v1/auth/upgrade         Upgrade paket (self-service, demo-only)
-POST   /api/v1/auth/api-keys        Generate API Key (Pro/Max saja)
+POST   /api/v1/auth/register        Register a new account (defaults to Free)
+POST   /api/v1/auth/login           Log in, get a JWT
+GET    /api/v1/auth/me              Info about the logged-in account
+POST   /api/v1/auth/upgrade         Upgrade plan (self-service, demo-only)
+POST   /api/v1/auth/api-keys        Generate an API key (Pro/Max only)
 ```
 
 ### Dataset Service
 ```
-POST   /api/v1/datasets/upload      Upload dataset ZIP (batas sesuai paket)
-GET    /api/v1/datasets             List dataset milik sendiri
-GET    /api/v1/datasets/{id}        Detail dataset + kelas
-DELETE /api/v1/datasets/{id}        Soft delete dataset
+POST   /api/v1/datasets/upload      Upload a dataset ZIP (limit depends on plan)
+GET    /api/v1/datasets             List your own datasets
+GET    /api/v1/datasets/{id}        Dataset detail + classes
+DELETE /api/v1/datasets/{id}        Soft-delete a dataset
 ```
 
 ### Audit Service
 ```
-POST   /api/v1/audits               Buat audit baru (analyzer ditentukan server sesuai paket)
-GET    /api/v1/audits/{id}          Status audit
-POST   /api/v1/audits/{id}/retry    Retry audit yang gagal
-WS     /ws/audits/{id}              Live progress per-analyzer — baru untuk UAS
+POST   /api/v1/audits               Create a new audit (analyzers decided server-side by plan)
+GET    /api/v1/audits/{id}          Audit status
+POST   /api/v1/audits/{id}/retry    Retry a failed audit
+WS     /ws/audits/{id}              Live per-analyzer progress — added for coursework
 ```
 
 ### Report Service
 ```
-GET    /api/v1/reports/{audit_id}          Hasil per-analyzer + findings
-GET    /api/v1/reports/{audit_id}/summary  Health score & komponen
-GET    /api/v1/reports/{audit_id}/pdf      Download PDF (Pro/Max saja)
+GET    /api/v1/reports/{audit_id}          Per-analyzer results + findings
+GET    /api/v1/reports/{audit_id}/summary  Health score & components
+GET    /api/v1/reports/{audit_id}/pdf      PDF download (Pro/Max only)
 ```
 
-Semua endpoint di atas (kecuali `/api/v1/auth/register` dan `/api/v1/auth/login`) wajib membawa `Authorization: Bearer <jwt>` atau `X-API-Key: <key>`.
+Every endpoint above (except `/api/v1/auth/register` and
+`/api/v1/auth/login`) requires `Authorization: Bearer <jwt>` or
+`X-API-Key: <key>`.
 
 ---
 
-## Observability
+## Observability (server stack)
 
-- **Prometheus** (`localhost:9090/targets`) — scrape metrik dari 5 backend service + plugin metrics RabbitMQ, otomatis lewat `prometheus-fastapi-instrumentator`, tanpa kode tambahan di masing-masing endpoint.
-- **Grafana** (`localhost:3001`, login `admin`/`admin`) — dashboard **"ModelGate Overview"** sudah ter-provisioning otomatis saat startup (request rate & latency per service, kedalaman antrian RabbitMQ, jumlah consumer, status up/down semua service). Datasource Prometheus juga sudah otomatis tersambung, tidak perlu setup manual.
+- **Prometheus** (`localhost:9090/targets`) — scrapes metrics from all 5
+  backend services + the RabbitMQ metrics plugin, automatically via
+  `prometheus-fastapi-instrumentator`, no extra code per endpoint.
+- **Grafana** (`localhost:3001`, login `admin`/`admin`) — the
+  **"ModelGate Overview"** dashboard is auto-provisioned on startup
+  (request rate & latency per service, RabbitMQ queue depth, consumer
+  count, up/down status for every service). The Prometheus datasource
+  is also connected automatically, no manual setup needed.
 
 ---
 
-## Horizontal Scaling
+## Horizontal Scaling (server stack)
 
-`analysis_service` terhubung ke RabbitMQ sebagai consumer — menjalankan lebih dari satu instance otomatis membagi beban tanpa kode load-balancing tambahan (jalankan dari `packages/modelgate-server/`):
+`analysis_service` connects to RabbitMQ as a consumer — running more
+than one instance automatically distributes load with no extra
+load-balancing code (run from `packages/modelgate-server/`):
 
 ```bash
 docker compose up -d --scale analysis_service=3
-sleep 5   # beri waktu semua replika konek ke RabbitMQ
-docker compose exec rabbitmq rabbitmqctl list_consumers   # harus muncul 3 consumer untuk queue audit.jobs
+sleep 5   # give replicas time to connect to RabbitMQ
+docker compose exec rabbitmq rabbitmqctl list_consumers   # should show 3 consumers on the audit.jobs queue
 
-# kembalikan ke 1 replika setelah selesai
+# scale back down to 1 replica when done
 docker compose up -d --scale analysis_service=1
 ```
 
@@ -305,98 +394,112 @@ docker compose up -d --scale analysis_service=1
 
 ## CI/CD
 
-`.github/workflows/build.yml` — build dan push image Docker tiap service ke **GitHub Container Registry (GHCR)** secara otomatis setiap push ke branch `main`.
+- `.github/workflows/build.yml` — builds and pushes a Docker image for
+  each service to **GitHub Container Registry (GHCR)** on every push to
+  `main`.
+- `.github/workflows/conformance.yml` — runs `conformance/runner.py`
+  against `modelgate-core` on every push/PR. This is the gate that makes
+  MGS a specification rather than a claim (see `ROADMAP.md` Fase 3):
+  any change to the Reader/Checker/Report pipeline has to still
+  reproduce every frozen `conformance/expected/*.json` exactly, or CI fails.
 
 ---
 
-## Development
+## Development (server stack)
 
-> Semua perintah `docker compose` di bagian ini dijalankan dari
+> Every `docker compose` command in this section is run from
 > `packages/modelgate-server/`.
 
-### Rebuild satu service
+### Rebuild a single service
 
 ```bash
 docker compose up -d --build <service_name>
-docker compose restart nginx   # WAJIB setelah rebuild apapun
+docker compose restart nginx   # REQUIRED after any rebuild
 ```
 
-### Lihat logs
+### View logs
 
 ```bash
 docker compose logs -f <service_name>
-# Contoh:
+# Example:
 docker compose logs -f analysis_service
 docker compose logs -f audit_service
 ```
 
-### Matikan semua service
+### Stop everything
 
 ```bash
-docker compose down          # Matikan, data tetap ada
-docker compose down -v       # Matikan + hapus semua data (reset total)
+docker compose down          # Stop, keep data
+docker compose down -v       # Stop + delete all data (full reset)
 ```
 
-### Struktur direktori
+### Directory structure
 
-Direstrukturisasi jadi monorepo di Fase 1 (lihat [`ROADMAP.md`](ROADMAP.md)) — `modelgate-core` adalah pusatnya (G3 di [`BACKLOG.md`](BACKLOG.md)), semua yang lain jadi consumer-nya:
+Restructured into a monorepo in Fase 1 (see [`ROADMAP.md`](ROADMAP.md)) —
+`modelgate-core` is the center of it (G3 in [`BACKLOG.md`](BACKLOG.md)),
+everything else is a consumer of it:
 
 ```
 MGS/
 ├── packages/
-│   ├── modelgate-core/          Reference implementation MGS — pure Python,
-│   │                            zero dependency infra. Reader → Manifest →
-│   │                            Checker → Report. Fase 2 di ROADMAP.md
-│   │                            (skeleton packaging sudah ada, pipeline-nya
-│   │                            belum — lihat pyproject.toml di dalamnya)
-│   ├── modelgate-server/        Stack microservice (hosted deployment)
+│   ├── modelgate-core/          MGS reference implementation — pure Python,
+│   │                            zero infra dependencies. Reader → Manifest →
+│   │                            Checker → Report. Real and conformance-tested
+│   │                            as of Fase 3 (ROADMAP.md) — not just a
+│   │                            packaging skeleton anymore.
+│   ├── modelgate-server/        Microservice stack (hosted deployment)
 │   │   ├── dataset_service/     FastAPI — upload & dataset management
 │   │   ├── audit_service/       FastAPI — audit orchestration + WebSocket + RabbitMQ publisher
-│   │   ├── analysis_service/    FastAPI — 5 analyzer (akan panggil modelgate-core di Fase 5) + RabbitMQ consumer (scalable)
+│   │   ├── analysis_service/    FastAPI — 5 analyzers (will call modelgate-core in Fase 5) + RabbitMQ consumer (scalable)
 │   │   ├── report_service/      FastAPI — health score + PDF generation
-│   │   ├── auth_service/        FastAPI — JWT, API Key, tier (tier dihapus di Fase 5, lihat G8)
-│   │   ├── cli/                 mgs.py — CLI lama, bicara ke server lewat HTTP
-│   │   ├── shared/              Kode bersama (response format, dll) — khusus server, bukan core
+│   │   ├── auth_service/        FastAPI — JWT, API key, tiers (removed in Fase 5, see G8)
+│   │   ├── cli/                 mgs.py — old CLI, talks to the server over HTTP
+│   │   ├── shared/              Shared code (response envelope, etc.) — server-only, not core
 │   │   ├── nginx/                nginx.conf (API gateway: auth_request, rate limit, CORS)
-│   │   ├── rabbitmq/             Dockerfile custom (plugin Prometheus)
-│   │   ├── observability/        Konfigurasi Prometheus + provisioning Grafana
-│   │   ├── docker-compose.yml    Jalankan dari sini, bukan dari root
-│   │   └── .env.example          Template konfigurasi (salin ke .env)
-│   ├── modelgate-web/            React + Vite + Tailwind — UI utama
-│   ├── modelgate-streamlit/      UI lama — diarsipkan, tidak di-maintain aktif
-│   └── github-action/            GitHub Action — dibangun Fase 6
+│   │   ├── rabbitmq/             Custom Dockerfile (Prometheus plugin)
+│   │   ├── observability/        Prometheus + Grafana provisioning config
+│   │   ├── docker-compose.yml    Run from here, not from repo root
+│   │   └── .env.example          Config template (copy to .env)
+│   ├── modelgate-web/            React + Vite + Tailwind — main UI
+│   ├── modelgate-streamlit/      Older UI — archived, not actively maintained
+│   └── github-action/            GitHub Action — built in Fase 6
 ├── specs/
-│   ├── mgs/                     Draf spesifikasi MGS (MGS-1.0.md)
-│   └── LICENSE                  CC-BY-4.0, khusus untuk spec
-├── conformance/                  Korpus conformance — dibangun Fase 3
+│   ├── mgs/                     MGS specification (MGS-1.0.md — frozen)
+│   └── LICENSE                  CC-BY-4.0, for the spec only
+├── conformance/                  Conformance corpus + CI gate (Fase 3)
 ├── docs/
-│   ├── uas-archive/              PRD, slide, video script UAS asli — diarsipkan
+│   ├── uas-archive/              Original coursework PRD, slides, video script — archived
 │   ├── index.html                 API docs (RapiDoc)
-│   ├── rapidoc-min.js             RapiDoc bundled (offline)
-│   ├── generate_specs.sh          Refresh OpenAPI specs dari running services
+│   ├── rapidoc-min.js             Bundled RapiDoc (offline)
+│   ├── generate_specs.sh          Refresh OpenAPI specs from running services
 │   └── openapi/                  OpenAPI 3.0 JSON per service
-├── .github/workflows/            CI/CD — build & push image ke GHCR
-├── LICENSE                       Apache-2.0, untuk kode
-├── ARCHITECTURE.md               Detail arsitektur & keputusan desain
-├── BACKLOG.md                    Temuan + keputusan arsitektur (bagian G)
-└── ROADMAP.md                    Rencana restrukturisasi Fase 0-7
+├── .github/workflows/            CI/CD — image builds + the conformance gate
+├── LICENSE                       Apache-2.0, for the code
+├── ARCHITECTURE.md               Architecture detail & design decisions
+├── BACKLOG.md                    Findings + architecture decisions (section G)
+└── ROADMAP.md                    Fase 0-7 restructuring plan
 ```
 
 ---
 
-## Kaitan ke Mata Kuliah
+## Course Mapping
+
+This section documents which features of the original coursework
+submission map to which course concepts — kept for historical record.
 
 ### Web Service
-- **REST API + API Gateway** — Nginx sebagai satu pintu masuk untuk semua service
-- **Dua skema autentikasi** — JWT (untuk pengguna lewat browser) dan API Key (untuk akses terprogram lewat CLI/script)
-- **Komunikasi real-time** — WebSocket untuk progress audit, menggantikan polling
-- **Rate limiting** — pembatasan request berbasis IP di API Gateway
+- **REST API + API Gateway** — Nginx as a single entry point for every service
+- **Two auth schemes** — JWT (browser users) and API key (programmatic access via CLI/scripts)
+- **Real-time communication** — WebSocket for audit progress, replacing polling
+- **Rate limiting** — IP-based request limits at the API gateway
 
-### Pemrograman Berbasis Platform
-- **Containerization** — seluruh stack berjalan di Docker & Docker Compose
-- **Message queue asinkron** — RabbitMQ untuk proses analisis gambar yang berat
-- **Observability** — Prometheus (metrics) + Grafana (visualisasi)
-- **Horizontal scaling** — multiple consumer instance dibagi beban otomatis oleh RabbitMQ
-- **CI/CD** — automasi build & publish image lewat GitHub Actions
+### Platform-Based Programming
+- **Containerization** — the whole stack runs on Docker & Docker Compose
+- **Async message queue** — RabbitMQ for heavy image-analysis work
+- **Observability** — Prometheus (metrics) + Grafana (visualization)
+- **Horizontal scaling** — multiple consumer instances, load distributed automatically by RabbitMQ
+- **CI/CD** — automated image build & publish via GitHub Actions
 
-Kubernetes secara sadar tidak dimasukkan ke scope UAS ini — pertimbangan trade-off antara kompleksitas setup dan waktu yang tersedia untuk implementasi serta pengujian yang matang pada fitur lain.
+Kubernetes was deliberately left out of the coursework's scope — a
+trade-off between setup complexity and the time available to properly
+implement and test other features.

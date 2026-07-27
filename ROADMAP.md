@@ -214,6 +214,10 @@ Belum kamu putuskan; saya pilih supaya plan bisa jalan. **Semua bisa dibantah** 
 | F9 | `auth_service` | Dipertahankan, **opsional, mati secara default** | Self-hosted single-user tidak butuh login; multi-user tetap butuh ownership. Membuangnya berarti membuang fitur nyata demi masalah yang sudah hilang |
 | F10 | Paket PyPI | `modelgate` tunggal, CLI ikut di dalam; `modelgate[server]` sebagai extra | Satu nama untuk disitasi. CLI terpisah berarti dua paket untuk dirilis bersamaan seumur hidup proyek |
 
+**⚠️ Temuan Fase 4 — nama `modelgate` sudah dipakai di PyPI produksi** (ada rilis `0.1.0` aktif, terverifikasi lewat `pypi.org/simple/modelgate/`). Ini **tidak menghalangi Fase 4** — TestPyPI adalah namespace terpisah dari PyPI produksi, dan `modelgate` **tersedia** di sana (terverifikasi, HTTP 404 di `test.pypi.org/simple/modelgate/`). `pyproject.toml` tetap memakai `name = "modelgate"` untuk sisa Fase 4-6.
+
+**Yang wajib diputuskan sebelum Fase 7a (kunci nama final):** nama produksi PyPI harus diganti. Kandidat yang sudah dicek tersedia (per hari verifikasi ini — bisa berubah): `modelgate-mgs`, `mgs-modelgate`, `model-gate`, `modelgate-cv`, `mgscheck`, `pymodelgate`. Ini keputusan user (F10), bukan sesuatu yang diputuskan sepihak — ganti `project.name` di `pyproject.toml` begitu dipilih, plus `project.scripts` entry point `modelgate` bisa tetap dipertahankan sebagai nama command CLI meskipun nama paket PyPI-nya berbeda (dua hal yang independen — banyak paket PyPI melakukan ini, mis. paket `beautifulsoup4` menyediakan command `bs4`).
+
 ---
 
 ## Risiko terbesar
