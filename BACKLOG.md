@@ -614,10 +614,10 @@ Pola ini dipakai banyak proyek spec+impl. Apache-2.0 lebih tepat dari MIT di sin
 **File:** `docker-compose.yml:142`
 
 ```yaml
-PGADMIN_DEFAULT_EMAIL: agrieby.chaniago@student.uhb.ac.id
+PGADMIN_DEFAULT_EMAIL: <real campus email, hardcoded>
 ```
 
-Email kampus asli, akan terbaca publik dan ter-scrape bot spam begitu repo dibuka. Ganti ke `admin@example.com`.
+Email kampus asli, akan terbaca publik dan ter-scrape bot spam begitu repo dibuka. Ganti ke `admin@example.com`. (Redaksi: nilai asli sengaja tidak dikutip literal di sini juga — mengutipnya apa adanya di dokumen ini akan mengulang persis kebocoran yang catatan ini sendiri peringatkan.)
 
 Catatan: mengganti di HEAD tidak menghapusnya dari riwayat commit. Untuk repo yang belum dikenal, biarkan saja di riwayat — biayanya tidak sebanding dengan `filter-repo`. Yang penting HEAD bersih.
 
