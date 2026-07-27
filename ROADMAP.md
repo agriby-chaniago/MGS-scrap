@@ -234,6 +234,23 @@ Plus: permukaan API publik dikunci (D5.1), `CHANGELOG.md` dimulai (H5), README r
 
 ---
 
+## Fase 7 — Publikasi ke repo bersih ✅ (DOI menyusul)
+
+Repo baru live: **github.com/ModelGate-Standard/modelgate**, tag `v1.0.0`.
+
+**Koreksi dari rencana awal:** Fase 7b semula bilang commit pertama = "kondisi final monorepo" (termasuk `modelgate-server`/`web`/`streamlit`/`github-action` yang diarsipkan). Setelah repo baru live, ditemukan itu salah — package yang sudah diarsipkan (keputusan sesi library-first) tetap ikut ter-push ke repo publik yang seharusnya bersih. Diperbaiki: package arsip + turunannya (`docs/openapi`, `docs/screenshots`, `conformance/server_client.py`, `conformance/action_client.py`, `.github/workflows/build.yml`) dihapus dari repo baru. Karena belum ada yang mengonsumsi commit pertama saat itu (belum ada GitHub Release/DOI), commit di-amend (bukan ditambah commit "oops fix") dan tag `v1.0.0` dipindah — sesuai prinsip asli Fase 7b sendiri ("tanpa commit oops fix dari proses pengerjaan"). Setelah PyPI/DOI mulai terhubung ke commit tersebut, perbaikan berikutnya (ABOUT.md) memang jadi commit normal, tidak diamend lagi.
+
+Repo baru sekarang murni library: `packages/modelgate-core`, `specs/`, `conformance/` (fixtures + runner, tanpa server/action client), `docs/uas-archive/` (dipertahankan, bukan bagian package yang diarsipkan), plus dokumen tingkat atas (README, ABOUT, ARCHITECTURE, BACKLOG, ROADMAP, CONTRIBUTING).
+
+**Exit criteria:**
+- ✅ Repo baru live, `git clone` publik jalan, `v1.0.0` ter-tag
+- ✅ README repo lama menunjuk ke repo baru (superseded notice), dan sebaliknya (dev-history link)
+- ✅ CI (`conformance.yml`) hijau di repo baru — diverifikasi lewat GitHub Actions API, `conclusion: success`
+- ✅ **PyPI produksi**: `pip install modelgate-mgs` — diverifikasi nyata dari venv bersih, CLI jalan pada fixture asli
+- ⏳ **DOI Zenodo** — GitHub Release `v1.0.0` sudah dipublish, webhook ke Zenodo terverifikasi sukses ("Last delivery was successful"), tapi archival job Zenodo masih berstatus "Received" (backend Zenodo, di luar kendali proyek). Update begitu selesai.
+
+---
+
 ## Keputusan default yang saya ambil
 
 Belum kamu putuskan; saya pilih supaya plan bisa jalan. **Semua bisa dibantah** — tapi kalau tidak dibantah, ini yang dipakai.
