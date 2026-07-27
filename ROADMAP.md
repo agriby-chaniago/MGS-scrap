@@ -247,7 +247,9 @@ Repo baru sekarang murni library: `packages/modelgate-core`, `specs/`, `conforma
 - ✅ README repo lama menunjuk ke repo baru (superseded notice), dan sebaliknya (dev-history link)
 - ✅ CI (`conformance.yml`) hijau di repo baru — diverifikasi lewat GitHub Actions API, `conclusion: success`
 - ✅ **PyPI produksi**: `pip install modelgate-mgs` — diverifikasi nyata dari venv bersih, CLI jalan pada fixture asli
-- ⏳ **DOI Zenodo** — GitHub Release `v1.0.0` sudah dipublish, webhook ke Zenodo terverifikasi sukses ("Last delivery was successful"), tapi archival job Zenodo masih berstatus "Received" (backend Zenodo, di luar kendali proyek). Update begitu selesai.
+- ✅ **DOI Zenodo**: [10.5281/zenodo.21628530](https://doi.org/10.5281/zenodo.21628530), badge ditambahkan ke README repo baru. Sempat tertahan cukup lama di status "Received" (backend Zenodo, bukan masalah di sisi proyek — webhook GitHub sudah terverifikasi sukses sejak awal), akhirnya selesai.
+
+**Fase 7 tuntas — seluruh rencana restrukturisasi (Fase 0–7) selesai.**
 
 ---
 
