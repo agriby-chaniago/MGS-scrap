@@ -85,6 +85,18 @@ A Reader MUST populate every field. A Reader that cannot determine
 `split` for a Dataset with no split structure MUST set it to `null`, not
 omit the field.
 
+**Implementation note (added during Fase 2 build — see §9):** a Checker
+still needs to obtain a Sample's actual bytes to decode it (corruption
+check, perceptual hash, pixel dimensions). An implementation MAY carry
+additional fields on its in-memory Manifest/Sample representation for
+this purpose (e.g. a resolved local filesystem path per Sample) that are
+**not** part of this schema. Such fields MUST NOT be included when
+serializing a Manifest for comparison under §7 (conformance) — they are
+inherently machine-local (a temp-extraction path, say) and two
+conformant implementations evaluating the "identical Manifest" for the
+same Dataset are expected to differ on them. Only the fields listed
+above are normative.
+
 ### 2.3 `dataset.sha256` (the dataset fingerprint)
 
 Computed as:
@@ -355,3 +367,19 @@ it is expected to be revised by findings made while building the
 reference implementation's Reader/Manifest/Checker pipeline (see
 `ROADMAP.md`, Fase 2) before being frozen as MGS 1.0 proper (`ROADMAP.md`,
 Fase 3) once the conformance corpus (§7.2) is green.
+
+**Revisions made so far during Fase 2 implementation:**
+- §2.2 gained the implementation-note paragraph on Sample-level
+  filesystem access (`source_path`-style fields) after building the
+  actual Reader/Checker split revealed Checkers need a way to read
+  bytes, not just metadata, without that becoming part of the
+  normative, compared schema.
+- §5.1 (MGS-0001 Structure)'s "any label with zero samples" FAIL
+  condition is currently unreachable in the reference implementation —
+  `Manifest.labels` is derived from samples that exist, so a Reader
+  never produces a label with a zero count in the first place. Detecting
+  a genuinely empty class folder needs a Reader that also enumerates
+  empty directories, not just files, which is not yet implemented.
+  Tracked as a known gap in the reference implementation, not a spec
+  change — the requirement text in §5.1 is still correct; the FAIL
+  condition is honest about what's covered.
