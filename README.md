@@ -1,5 +1,15 @@
 # ModelGate — check a CV dataset with MGS before you train on it
 
+> **This repository has been superseded.**
+> The permanent home of this project is
+> [github.com/ModelGate-Standard/modelgate](https://github.com/ModelGate-Standard/modelgate) —
+> `pip install modelgate-mgs`.
+>
+> This repo contains the original UAS coursework submission (tag
+> `v0.1-uas`) and the full development history of the restructuring
+> from that submission into an open, spec-driven library. Kept for
+> that history, not actively developed further.
+
 **Repository:** https://github.com/agriby-chaniago/MGS
 
 `modelgate` is the reference implementation of **MGS** (Model Gate
