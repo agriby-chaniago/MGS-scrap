@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
-from models.database import init_db
 from services.minio_service import minio_service
 from routers import upload, datasets
 from shared.response import success_response
@@ -11,7 +10,8 @@ Instrumentator().instrument(app).expose(app)
 
 @app.on_event("startup")
 def startup():
-    init_db()
+    # Schema is migrated by `alembic upgrade head` in the container
+    # entrypoint, before this process starts (Fase 5, BACKLOG.md E3).
     minio_service.ensure_bucket()
 
 

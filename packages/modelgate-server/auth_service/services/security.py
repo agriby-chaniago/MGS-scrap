@@ -24,12 +24,12 @@ def verify_password(password: str, password_hash: str) -> bool:
     return pwd_context.verify(password, password_hash)
 
 
-def create_access_token(user_id: str, email: str, plan: str) -> str:
+def create_access_token(user_id: str, email: str) -> str:
+    # No `plan` claim — the tier system is gone (Fase 5, G8, BACKLOG.md).
     now = datetime.now(timezone.utc)
     payload = {
         "sub": user_id,
         "email": email,
-        "plan": plan,
         "iat": now,
         "exp": now + timedelta(minutes=JWT_EXPIRE_MINUTES),
     }

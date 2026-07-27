@@ -7,6 +7,18 @@ pydantic-settings==2.2.1
 python-dotenv==1.0.1
 alembic==1.13.1
 python-multipart==0.0.9
-pillow==10.3.0
 minio==7.2.7
 prometheus-fastapi-instrumentator==7.0.0
+
+# modelgate-core is NOT listed here on purpose: the name "modelgate" is
+# already taken on production PyPI by an unrelated package (see
+# ROADMAP.md F10) — a bare `modelgate` line here would make
+# `pip install -r requirements.txt` silently fetch the WRONG package if
+# run outside Docker. It's installed from local source instead:
+#   - In Docker: Dockerfile COPYs packages/modelgate-core and
+#     `pip install`s it directly (see Dockerfile, and docker-compose.yml's
+#     `context: ../..` for this service).
+#   - For local dev without Docker: `pip install -e ../../modelgate-core`
+# pillow was removed from here in Fase 5 — image decoding/corruption
+# checking now lives solely in modelgate-core (MGS-0002), not duplicated
+# in this service's own validator.py (deleted).

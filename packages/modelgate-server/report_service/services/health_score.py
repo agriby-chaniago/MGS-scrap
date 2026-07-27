@@ -1,34 +1,57 @@
-def calculate_health_score(results: list[dict]) -> dict:
+"""Health score — informative, not normative (BACKLOG.md F4 / C3).
+
+The authoritative signal for a dataset is `overall_verdict` (computed in
+aggregator.py from each MGS Requirement's own PASS/FAIL/NOT_EVALUATED
+verdict — the same logic as modelgate-core's Report.overall_verdict).
+This module produces a secondary 0-1 metric for comparing dataset
+versions over time, nothing more — it must never be read as a
+conformance claim.
+
+It must also never silently substitute a neutral value for a
+NOT_EVALUATED requirement. That was bug A2 (BACKLOG.md, pre-Fase-5): a
+zero-image dataset scored 0.80 ("grade A") because every missing metric
+defaulted to a neutral 1.0. This function returns None — not a number
+that looks real but isn't — whenever any input it needs wasn't actually
+evaluated.
+"""
+
+
+def calculate_health_score(requirement_rows: dict[str, dict], informative: dict | None) -> dict | None:
     """
     Score = 0.30*I + 0.25*U + 0.25*D + 0.20*Q
 
-    I = 1 - corruption_rate     (CorruptionAnalyzer.metrics)
-    U = uniqueness_rate          (DuplicateAnalyzer.metrics)
-    D = 1 - gini_coefficient     (DistributionAnalyzer.metrics)
-    Q = images_in_normal_range   (ResolutionAnalyzer.metrics)
+    I = 1 - corruption_rate     (MGS-0002 metrics)
+    U = 1 - duplicate_rate      (MGS-0003 metrics)
+    D = 1 - gini_coefficient    (MGS-0004 metrics)
+    Q = images_in_normal_range  (informative.resolution — not a
+                                 Requirement, spec §5.5)
 
-    Jika analyzer selesai tapi metrics kosong, default ke nilai netral (1.0).
+    `requirement_rows`: {analyzer_type -> result_payload} for the 4 MGS
+    requirement rows, each result_payload shaped like
+    {"verdict": ..., "config": ..., "metrics": ..., "findings": ...}.
     """
-    metrics = {
-        r["analyzer_type"]: (r.get("result_payload") or {}).get("metrics", {})
-        for r in results
-    }
+    integrity = requirement_rows.get("MGS-0002")
+    duplicate = requirement_rows.get("MGS-0003")
+    balance = requirement_rows.get("MGS-0004")
 
-    # EmptyAnalyzer tidak berkontribusi langsung ke formula Health Score.
-    # Hasilnya (empty_rate, empty_count) tersedia di full report sebagai
-    # informasi tambahan. Rationale: empty images sudah tercover sebagian
-    # oleh Integrity (corruption) dan Quality (resolution outlier).
-    I = 1.0 - metrics.get("corruption", {}).get("corruption_rate", 0.0)
-    U = metrics.get("duplicate", {}).get("uniqueness_rate", 1.0)
-    D = 1.0 - metrics.get("distribution", {}).get("gini_coefficient", 0.0)
-    Q = metrics.get("resolution", {}).get("images_in_normal_range", 1.0)
+    if not all([integrity, duplicate, balance]):
+        return None
+    if any(r["verdict"] == "NOT_EVALUATED" for r in (integrity, duplicate, balance)):
+        return None
+
+    resolution = (informative or {}).get("resolution") or {}
+    if not resolution or resolution.get("total", 0) == 0:
+        return None
+
+    I = 1.0 - integrity["metrics"]["corruption_rate"]
+    U = 1.0 - duplicate["metrics"]["duplicate_rate"]
+    D = 1.0 - balance["metrics"]["gini_coefficient"]
+    Q = resolution["images_in_normal_range"]
 
     score = round(0.30 * I + 0.25 * U + 0.25 * D + 0.20 * Q, 4)
-    grade = "A" if score >= 0.80 else "B" if score >= 0.60 else "C" if score >= 0.40 else "D"
 
     return {
         "score": score,
-        "grade": grade,
         "components": {
             "I": round(I, 4),
             "U": round(U, 4),

@@ -52,11 +52,9 @@ ZIP → Reader → Manifest → Storage → Manifest'
 
 Kalau `Manifest' ≠ Manifest`, MGS rusak — bukan sebagian, tapi seluruhnya, karena G5 adalah fondasi klaim reproducibility.
 
-**Pelanggaran hari ini:** `dataset_service/services/minio_service.py:27-44` menyimpan objek sebagai `{dataset_id}/{class_name}/{filename}` — **struktur split dibuang saat upload.** CLI yang membaca ZIP asli masih melihat `train/`/`test/`; server tidak.
+**✅ SELESAI (Fase 5).** `minio_service.py` ditulis ulang: objek disimpan pakai `Sample.uri` kanonik dari modelgate-core's Reader (sudah mengandung split/label/filename), bukan skema lama yang membuang split. Dibuktikan langsung lewat HTTP asli: upload `adhoc-split.zip` → MinIO menyimpan `train/cat/0.jpg`, `test/cat/1.jpg`, dst — bukan cuma diklaim benar oleh kode, diverifikasi isi storage-nya. Lebih jauh, `conformance/runner.py --tool server_client.py` membuktikan **12/12 fixture menghasilkan `dataset_hash` identik** dengan `modelgate-core` langsung — bukti G5 sungguhan, bukan cuma G7 sendirian.
 
-Begitu ada satu requirement MGS yang menyentuh split (kebocoran data antar-split, distribusi kelas per split — dua hal yang hampir pasti masuk spec dataset CV), CLI dan server **tidak akan pernah** bisa menghasilkan verdict yang sama. Bukan bug yang bisa ditambal: server tidak punya datanya.
-
-Akar yang sama dengan A1.
+Akar yang sama dengan A1 (juga sudah mati, lihat Fase 2).
 
 ### G5/G7 — mekanisme pembuktian
 
@@ -88,7 +86,7 @@ Menjawab F3. Seluruh mesin tier (`free`/`pro`/`max`) dibuang: batas upload, pemi
 
 Semua item di bagian ini sudah diverifikasi empiris (simulasi kode asli), bukan dugaan.
 
-### A1 — `upload_directory` buang seluruh dataset untuk layout flat-class · P0 · OPEN
+### A1 — `upload_directory` buang seluruh dataset untuk layout flat-class · P0 · ✅ MATI (Fase 2/5)
 
 **File:** `dataset_service/services/minio_service.py:27-44`
 
@@ -112,7 +110,7 @@ Hasil simulasi memakai kode asli:
 
 ---
 
-### A2 — Dataset kosong mendapat grade A · P0 · OPEN
+### A2 — Dataset kosong mendapat grade A · P0 · ✅ MATI (Fase 2)
 
 **File:** `report_service/services/health_score.py:20-24`
 
@@ -159,7 +157,7 @@ Terkait C2 (tier tidak boleh gate conformance).
 
 ---
 
-### A5 — Distribution analyzer menghitung file, bukan gambar · P3 · OPEN
+### A5 — Distribution analyzer menghitung file, bukan gambar · P3 · ✅ MATI (Fase 5 — analyzer lama dihapus, diganti _checkers/balance.py)
 
 **File:** `analysis_service/analyzers/distribution.py:22`
 
@@ -167,7 +165,7 @@ Terkait C2 (tier tidak boleh gate conformance).
 
 ---
 
-### A6 — `run_with_retry` tidak pernah pakai delay terakhir · P3 · OPEN
+### A6 — `run_with_retry` tidak pernah pakai delay terakhir · P3 · ✅ MATI (Fase 5 — consumer.py lama dihapus)
 
 **File:** `analysis_service/consumer.py:24-40`
 
@@ -197,7 +195,7 @@ Sekarang jadi bahaya laten: satu kesalahan di `nginx.conf`, atau satu container 
 
 ---
 
-### B2 — IDOR: audit bisa dibuat di dataset milik user lain · P1 · OPEN
+### B2 — IDOR: audit bisa dibuat di dataset milik user lain · P1 · ✅ SELESAI (Fase 5)
 
 **File:** `audit_service/routers/audits.py:62-70`
 
@@ -221,7 +219,7 @@ Bisa dianggap fitur (cache tidak makan compute), tapi dikombinasikan dengan B2 j
 
 ---
 
-### B4 — File `.env` tidak pernah terbaca · P1 · OPEN
+### B4 — File `.env` tidak pernah terbaca · P1 · ✅ SELESAI (Fase 5)
 
 **File:** `docker-compose.yml:63, 79, 99, 117, 130`
 
@@ -233,7 +231,7 @@ Artinya `JWT_SECRET=dev-only-insecure-secret-change-me` yang ter-commit di repo 
 
 ---
 
-### B5 — Port 8005 auth_service ter-publish, melewati rate limit · P1 · OPEN
+### B5 — Port 8005 auth_service ter-publish, melewati rate limit · P1 · ✅ SELESAI (Fase 5)
 
 **File:** `docker-compose.yml` (service `auth_service`)
 
@@ -574,7 +572,7 @@ Risiko lebih besar: list `findings` bisa meledak jadi jutaan dict, dan seluruhny
 
 ---
 
-### E5 — Env var MinIO tidak konsisten · P3 · OPEN
+### E5 — Env var MinIO tidak konsisten · P3 · ✅ SELESAI (Fase 5)
 
 `analysis_service/services/minio_downloader.py:7-8` membaca `MINIO_HOST` + `MINIO_PORT`. `.env.example` hanya mendefinisikan `MINIO_ENDPOINT`.
 
@@ -584,7 +582,7 @@ Tambahan: default `MINIO_SECRET_KEY` di file itu `"minioadmin"`, sedangkan nilai
 
 ---
 
-### E6 — Duplikasi blok nginx · P3 · OPEN
+### E6 — Duplikasi blok nginx · P3 · ✅ SELESAI (Fase 5)
 
 **File:** `nginx/nginx.conf`
 

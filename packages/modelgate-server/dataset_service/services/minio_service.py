@@ -25,23 +25,19 @@ class MinIOService:
         self.client.fput_object(self.bucket, object_name, file_path)
         return f"{self.bucket}/{object_name}"
 
-    def upload_directory(self, dataset_id: str, directory: str) -> str:
-        """Upload semua file di directory ke MinIO. Return prefix path."""
-        # directory berisi: root_folder/class_name/image.jpg
-        entries = [e for e in os.listdir(directory) if os.path.isdir(os.path.join(directory, e))]
-        root = entries[0] if entries else ""
-        dataset_root = os.path.join(directory, root) if root else directory
-
-        for class_name in os.listdir(dataset_root):
-            class_dir = os.path.join(dataset_root, class_name)
-            if not os.path.isdir(class_dir):
-                continue
-            for fname in os.listdir(class_dir):
-                fpath = os.path.join(class_dir, fname)
-                if not os.path.isfile(fpath):
-                    continue
-                object_name = f"{dataset_id}/{class_name}/{fname}"
-                self.client.fput_object(self.bucket, object_name, fpath)
+    def upload_manifest(self, dataset_id: str, manifest) -> str:
+        """Upload every Sample in a modelgate Manifest to MinIO, keyed by
+        its canonical `uri`. Replaces the old `upload_directory`, which
+        guessed the dataset's root-folder structure itself (assumed a
+        single wrapper folder always existed — silently uploaded zero
+        objects for a flat-class ZIP) and dropped split information
+        entirely (BACKLOG.md A1, G7). `Sample.uri` is already normalized
+        by modelgate-core's Reader (`split/label/filename` or
+        `label/filename`), so storing at that path is correct by
+        construction — no structure-guessing here at all."""
+        for sample in manifest.samples:
+            object_name = f"{dataset_id}/{sample.uri}"
+            self.client.fput_object(self.bucket, object_name, sample.source_path)
 
         return f"{self.bucket}/{dataset_id}/"
 

@@ -13,16 +13,17 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 class AuthBase(DeclarativeBase):
-    """Tabel milik auth_service. Ikut create_all()."""
+    """Tabel milik auth_service."""
     pass
 
 
-def init_db():
-    with engine.connect() as conn:
-        conn.execute(text("CREATE SCHEMA IF NOT EXISTS auth_svc"))
-        conn.commit()
-    from models.orm import User, ApiKey  # noqa: F401
-    AuthBase.metadata.create_all(bind=engine)
+# Fase 5 (ROADMAP.md, BACKLOG.md E3): schema creation is now owned
+# entirely by Alembic (`alembic upgrade head`, run before the app starts
+# — see Dockerfile), not by an init_db()-on-startup create_all() call.
+# Two things can silently drift apart if both exist: a model field added
+# without a matching migration would still "work" via create_all() while
+# never being tracked by Alembic at all, and self-hosted deployments with
+# real data need a migration path, not a dev-only reset-and-recreate.
 
 
 def get_db():

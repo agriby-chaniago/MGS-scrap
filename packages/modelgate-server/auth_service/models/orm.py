@@ -12,7 +12,9 @@ class User(AuthBase):
     id            = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     email         = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    plan          = Column(String(20), default="free", nullable=False)
+    # `plan` column removed in Fase 5 (G8, BACKLOG.md) — the tier system
+    # (free/pro/max) is gone. Ownership/auth still exist (F9); paid tiers
+    # do not.
     created_at    = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 

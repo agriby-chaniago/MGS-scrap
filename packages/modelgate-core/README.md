@@ -37,6 +37,10 @@ Only what's listed in `modelgate.__all__` is covered by any stability
 guarantee (once tagged `1.0`, per `ROADMAP.md` Fase 4):
 
 - `modelgate.audit(path, config=None) -> Report`
+- `modelgate.read_dataset(path) -> Manifest` — structure-only parsing, no
+  Requirement checks run. Added in Fase 5 for `modelgate-server`'s
+  upload-time validation, but useful to anyone who wants a Manifest
+  without paying for a full audit.
 - `modelgate.Report`, `modelgate.RequirementResult`, `modelgate.Manifest`
 
 Anything under `modelgate._readers`, `modelgate._checkers`,

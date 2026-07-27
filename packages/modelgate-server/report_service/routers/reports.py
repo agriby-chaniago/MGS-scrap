@@ -17,10 +17,10 @@ SERVICE_NAME = "report_service"
 def _get_owned_report(audit_id: UUID, db: Session, x_user_id: str | None) -> dict:
     data = get_report_data(audit_id, db)
     if not data:
-        raise HTTPException(status_code=404, detail="Audit tidak ditemukan")
+        raise HTTPException(status_code=404, detail="Audit not found")
     # 404, not 403 — matches the ownership rule in dataset_service/audit_service.
     if data["user_id"] is not None and data["user_id"] != x_user_id:
-        raise HTTPException(status_code=404, detail="Audit tidak ditemukan")
+        raise HTTPException(status_code=404, detail="Audit not found")
     return data
 
 
@@ -45,9 +45,13 @@ def get_summary(
         data={
             "audit_id": data["audit_id"],
             "audit_status": data["audit_status"],
+            "spec_version": data["spec_version"],
+            "dataset_hash": data["dataset_hash"],
+            "overall_verdict": data["overall_verdict"],
+            "requirements": data["requirements"],
+            "informative": data["informative"],
             "health_score": data["health_score"],
-            "grade": data["grade"],
-            "components": data["components"],
+            "health_score_components": data["health_score_components"],
         },
         service=SERVICE_NAME,
     )
@@ -58,10 +62,9 @@ def download_pdf(
     audit_id: UUID,
     db: Session = Depends(get_db),
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
-    x_user_plan: str = Header(default="max", alias="X-User-Plan"),
 ):
-    if x_user_plan == "free":
-        raise HTTPException(status_code=403, detail="PDF export hanya untuk paket Pro/Max")
+    # PDF export is no longer plan-gated (Fase 5, G8, BACKLOG.md) — there
+    # is no plan anymore. Everyone who owns the audit can download it.
     data = _get_owned_report(audit_id, db, x_user_id)
     pdf_bytes = generate_pdf(data)
     return StreamingResponse(

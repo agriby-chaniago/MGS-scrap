@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from models.database import init_db
 from routers import auth, internal
 from shared.response import success_response
 
@@ -13,7 +12,9 @@ logging.basicConfig(level=logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    # Schema is created/migrated by `alembic upgrade head`, run in the
+    # container entrypoint before this process starts (Fase 5,
+    # BACKLOG.md E3) — not here anymore.
     yield
 
 

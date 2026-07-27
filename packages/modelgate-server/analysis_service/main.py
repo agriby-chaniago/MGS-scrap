@@ -6,7 +6,6 @@ from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from consumer import start_consuming
-from models.database import init_db
 from shared.response import success_response
 
 logging.basicConfig(level=logging.INFO)
@@ -14,7 +13,8 @@ logging.basicConfig(level=logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    # Schema is migrated by `alembic upgrade head` in the container
+    # entrypoint, before this process starts (Fase 5, BACKLOG.md E3).
     thread = threading.Thread(target=start_consuming, daemon=True)
     thread.start()
     yield

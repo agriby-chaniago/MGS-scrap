@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -15,58 +14,44 @@ router = APIRouter()
 
 SERVICE_NAME = "audit_service"
 
-ALL_ANALYZERS = ["corruption", "empty", "resolution", "distribution", "duplicate"]
-
-# Analyzer selection is computed server-side from the plan, never taken from
-# the client — otherwise a free-tier client could just request all 5 itself.
-TIER_ANALYZERS = {
-    "free": ["corruption", "empty", "resolution"],
-    "pro": ALL_ANALYZERS,
-    "max": ALL_ANALYZERS,
-}
-
-# Daily audit quota per plan; None = unlimited. Fail-open default is "max"
-# (see dataset_service/routers/upload.py for the same rationale).
-TIER_DAILY_QUOTA = {"free": 3, "pro": 20, "max": None}
+# The four MGS-1.0 normative Requirements (specs/mgs/MGS-1.0.md §5) —
+# always all of them, for every audit. Fase 5 (G8, BACKLOG.md) removed
+# the tier system that used to pick a subset here (free=3 of 5,
+# pro/max=all 5): conformance can't be something a paid plan unlocks
+# more of (C2, BACKLOG.md) — a Requirement not evaluated must be a real
+# NOT_EVALUATED verdict, never quietly skipped by plan.
+MGS_REQUIREMENTS = ["MGS-0001", "MGS-0002", "MGS-0003", "MGS-0004"]
 
 
-def _check_ownership(audit: Audit, x_user_id: str | None):
-    if audit.user_id is not None and str(audit.user_id) != x_user_id:
-        raise HTTPException(status_code=404, detail="Audit tidak ditemukan")
-
-
-def _check_daily_quota(db: Session, x_user_id: str | None, plan: str):
-    quota = TIER_DAILY_QUOTA.get(plan)
-    if quota is None or not x_user_id:
-        return
-    start_of_day = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    count_today = db.query(Audit).filter(
-        Audit.user_id == x_user_id,
-        Audit.created_at >= start_of_day,
-    ).count()
-    if count_today >= quota:
-        raise HTTPException(
-            status_code=429,
-            detail=f"Kuota audit harian ({quota}/hari) untuk paket '{plan}' tercapai",
-        )
+def _check_ownership(resource, x_user_id: str | None):
+    # 404, not 403 — a user shouldn't be able to tell whether another
+    # user's resource even exists.
+    if resource.user_id is not None and str(resource.user_id) != x_user_id:
+        raise HTTPException(status_code=404, detail="Resource not found")
 
 
 @router.post("/api/v1/audits", status_code=201)
 def create_audit(
     body: CreateAuditRequest,
     db: Session = Depends(get_db),
-    x_user_plan: str = Header(default="max", alias="X-User-Plan"),
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
 ):
-    # 1. Validasi dataset ada dan tidak deleted
+    # 1. Dataset must exist, not deleted, AND belong to this caller (or be
+    # unowned/legacy). This ownership check was missing here — the only
+    # one of the three dataset/audit endpoints in this file that lacked
+    # it (retry_audit and get_audit both already had it). Its absence let
+    # any authenticated user start (and read the resulting metadata of)
+    # an audit against another user's dataset by guessing/enumerating its
+    # id — an IDOR. See BACKLOG.md B2.
     dataset = db.query(DatasetReadOnly).filter(
         DatasetReadOnly.id == body.dataset_id,
         DatasetReadOnly.status != "deleted",
     ).first()
     if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset tidak ditemukan atau sudah dihapus")
+        raise HTTPException(status_code=404, detail="Dataset not found or already deleted")
+    _check_ownership(dataset, x_user_id)
 
-    # 2. Dedup: return audit completed yang sudah ada untuk dataset ini (skip jika force=True)
+    # 2. Dedup: return an existing completed audit for this dataset (skip if force=True)
     if not body.force:
         existing = db.query(Audit).filter(
             Audit.dataset_id == body.dataset_id,
@@ -77,30 +62,32 @@ def create_audit(
             data["cached"] = True
             return success_response(data=data, service=SERVICE_NAME)
 
-    # 3. Kuota harian per-tier (tidak berlaku untuk retry — lihat retry_audit)
-    _check_daily_quota(db, x_user_id, x_user_plan)
-
-    # 4. Buat audit record — requested_analyzers ditentukan server-side dari plan,
-    # bukan dari client, biar free tier gak bisa minta 5 analyzer sendiri.
-    analyzers = TIER_ANALYZERS.get(x_user_plan, TIER_ANALYZERS["free"])
-    audit = Audit(dataset_id=body.dataset_id, user_id=x_user_id, requested_analyzers=analyzers)
+    # 3. Create the audit record — every Requirement, every time (see
+    # MGS_REQUIREMENTS above). No per-tier selection and no daily quota
+    # here anymore (G8) — the old free-tier quota's only real effect,
+    # combined with the IDOR this fix closes, was that it could be
+    # bypassed entirely via the dedup path above, since quota was
+    # checked after dedup, not before.
+    audit = Audit(dataset_id=body.dataset_id, user_id=x_user_id, requested_analyzers=MGS_REQUIREMENTS)
     db.add(audit)
 
-    # 5. Commit dulu — supaya audit_id visible ke consumer sebelum message diterima
+    # 4. Commit first — so audit_id is visible to the consumer before it
+    # receives the message.
     db.commit()
     db.refresh(audit)
 
-    # 6. Transisi ke QUEUED **sebelum** publish — bugfix: urutan lama
-    # (publish dulu, baru commit "queued") punya race condition nyata:
-    # consumer bisa keburu dequeue & baca status="pending" (masih default
-    # ORM sebelum transisi), lalu skip proses & ack pesan — audit macet
-    # permanen (gak ada di queue lagi, gak bisa di-retry krn bukan status
-    # "failed"). Commit status dulu baru publish menutup race window ini.
+    # 5. Transition to QUEUED **before** publishing — bugfix: the old order
+    # (publish first, then commit "queued") had a real race condition: the
+    # consumer could dequeue and read status="pending" (still the ORM
+    # default, pre-transition), skip processing, and ack the message —
+    # the audit would get permanently stuck (no longer in the queue, and
+    # not retryable since its status isn't "failed"). Committing the
+    # status before publishing closes this race window.
     transition(audit, "queued", db)
     db.commit()
     db.refresh(audit)
 
-    # 7. Publish ke RabbitMQ
+    # 6. Publish to RabbitMQ
     try:
         publish_audit_job({
             "audit_id":            str(audit.id),
@@ -110,7 +97,7 @@ def create_audit(
             "created_at":          audit.created_at.isoformat(),
         })
     except Exception:
-        raise HTTPException(status_code=500, detail="Gagal mengirim job ke queue")
+        raise HTTPException(status_code=500, detail="Failed to publish job to queue")
 
     return success_response(
         data=AuditSchema.model_validate(audit).model_dump(),
@@ -126,14 +113,12 @@ def retry_audit(
 ):
     audit = db.query(Audit).filter(Audit.id == audit_id).first()
     if not audit:
-        raise HTTPException(status_code=404, detail="Audit tidak ditemukan")
+        raise HTTPException(status_code=404, detail="Audit not found")
     _check_ownership(audit, x_user_id)
-    # Retry does not consume new daily quota — it re-runs an existing audit,
-    # not a new one, and keeps the original requested_analyzers.
     if audit.status != "failed":
         raise HTTPException(
             status_code=400,
-            detail=f"Hanya audit berstatus 'failed' yang bisa di-retry (status saat ini: {audit.status})",
+            detail=f"Only audits with status 'failed' can be retried (current status: {audit.status})",
         )
 
     dataset = db.query(DatasetReadOnly).filter(
@@ -141,7 +126,7 @@ def retry_audit(
         DatasetReadOnly.status != "deleted",
     ).first()
     if not dataset:
-        raise HTTPException(status_code=400, detail="Dataset sudah dihapus, tidak bisa retry")
+        raise HTTPException(status_code=400, detail="Dataset was deleted, cannot retry")
 
     transition(audit, "queued", db)
     audit.error_message = None
@@ -159,7 +144,7 @@ def retry_audit(
             "force":               True,
         })
     except Exception:
-        raise HTTPException(status_code=500, detail="Gagal mengirim retry job ke queue")
+        raise HTTPException(status_code=500, detail="Failed to publish retry job to queue")
 
     return success_response(
         data=AuditSchema.model_validate(audit).model_dump(),
@@ -175,7 +160,7 @@ def get_audit(
 ):
     audit = db.query(Audit).filter(Audit.id == audit_id).first()
     if not audit:
-        raise HTTPException(status_code=404, detail="Audit tidak ditemukan")
+        raise HTTPException(status_code=404, detail="Audit not found")
     _check_ownership(audit, x_user_id)
 
     return success_response(

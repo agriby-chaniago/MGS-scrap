@@ -6,9 +6,13 @@ pydantic==2.7.1
 pydantic-settings==2.2.1
 python-dotenv==1.0.1
 alembic==1.13.1
-pillow==10.3.0
 minio==7.2.7
 pika==1.3.2
-imagehash==4.3.1
-numpy==1.26.4
 prometheus-fastapi-instrumentator==7.0.0
+
+# modelgate-core is NOT listed here — installed from local source via
+# Dockerfile instead. See dataset_service/requirements.txt for the full
+# rationale (PyPI name collision risk).
+# pillow/imagehash/numpy removed: image decoding is now entirely
+# modelgate-core's responsibility (it brings its own pinned versions of
+# these), not duplicated in this service's own analyzers/ (deleted).

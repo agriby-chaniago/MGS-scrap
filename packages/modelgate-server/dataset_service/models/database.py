@@ -22,20 +22,13 @@ class Base(DeclarativeBase):
     pass
 
 
-def init_db():
-    with engine.connect() as conn:
-        conn.execute(text("CREATE SCHEMA IF NOT EXISTS dataset_svc"))
-        conn.execute(text(
-            "ALTER TABLE IF EXISTS dataset_svc.datasets "
-            "ADD COLUMN IF NOT EXISTS file_hash VARCHAR(64)"
-        ))
-        conn.execute(text(
-            "ALTER TABLE IF EXISTS dataset_svc.datasets "
-            "ADD COLUMN IF NOT EXISTS user_id UUID"
-        ))
-        conn.commit()
-    from models.orm import Dataset, DatasetClass  # noqa: F401
-    Base.metadata.create_all(bind=engine)
+# Fase 5 (ROADMAP.md, BACKLOG.md E3): schema creation/evolution is now
+# owned entirely by Alembic (`alembic upgrade head`, run in the container
+# entrypoint before the app starts — see Dockerfile), not an
+# init_db()-on-startup create_all() + ad hoc ALTER TABLE call. The two
+# ALTER TABLE statements that used to live here (file_hash, user_id) are
+# gone too — those columns are declared directly on the Dataset model
+# now, so they're already part of the baseline migration's create_table.
 
 
 def get_db():

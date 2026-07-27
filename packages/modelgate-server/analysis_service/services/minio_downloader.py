@@ -3,11 +3,17 @@ from minio import Minio
 
 
 def get_minio_client() -> Minio:
+    # Fase 5 fix (E5, BACKLOG.md): this used to read MINIO_HOST/MINIO_PORT,
+    # which .env.example never defined (it only sets MINIO_ENDPOINT, the
+    # same var dataset_service's minio_service.py uses) — it only worked
+    # by coincidence because the hardcoded fallback happened to match.
+    # Changing MINIO_ENDPOINT in .env.example would have silently broken
+    # this service while leaving dataset_service unaffected.
     return Minio(
-        endpoint=f"{os.getenv('MINIO_HOST', 'minio')}:{os.getenv('MINIO_PORT', '9000')}",
+        endpoint=os.getenv("MINIO_ENDPOINT", "minio:9000"),
         access_key=os.getenv("MINIO_ACCESS_KEY", "minioadmin"),
-        secret_key=os.getenv("MINIO_SECRET_KEY", "minioadmin"),
-        secure=False,
+        secret_key=os.getenv("MINIO_SECRET_KEY", "minioadmin123"),
+        secure=os.getenv("MINIO_SECURE", "false").lower() == "true",
     )
 
 

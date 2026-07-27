@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -52,15 +50,21 @@ services:
       retries: 10
 
   dataset_service:
-    build: ./dataset_service
+    build:
+      # Context is the repo root, not ./dataset_service — this service
+      # installs modelgate-core as a sibling package (G4/D2.1, BACKLOG.md),
+      # which lives outside a same-directory build context. See
+      # dataset_service/Dockerfile.
+      context: ../..
+      dockerfile: packages/modelgate-server/dataset_service/Dockerfile
     # No fixed host port — reached only via Nginx (auth_request gate),
     # never directly. A fixed host port would let anyone bypass the whole
-    # auth gateway by self-supplying X-User-Id/X-User-Plan headers, since
-    # this service has no way to verify those headers actually came from
-    # Nginx. Same rationale as analysis_service's port removal (scaling).
+    # auth gateway by self-supplying an X-User-Id header, since this
+    # service has no way to verify that header actually came from Nginx.
+    # Same rationale as analysis_service's port removal (scaling).
     expose:
       - "8001"
-    env_file: .env.example
+    env_file: .env
     volumes:
       - ./shared:/app/shared
     environment:
@@ -76,7 +80,7 @@ services:
     # No fixed host port — see dataset_service comment above.
     expose:
       - "8002"
-    env_file: .env.example
+    env_file: .env
     volumes:
       - ./shared:/app/shared
     environment:
@@ -88,7 +92,11 @@ services:
         condition: service_healthy
 
   analysis_service:
-    build: ./analysis_service
+    build:
+      # Context is the repo root — see dataset_service's build section
+      # above for why (modelgate-core sibling-package install).
+      context: ../..
+      dockerfile: packages/modelgate-server/analysis_service/Dockerfile
     # No fixed host port: this service is only ever reached via Nginx's
     # internal DNS (analysis_service:8003), never directly from the host.
     # A fixed "8003:8003" mapping would collide when scaled to >1 replica
@@ -96,7 +104,7 @@ services:
     # port also removes a Nginx-bypass path once auth is enforced.
     expose:
       - "8003"
-    env_file: .env.example
+    env_file: .env
     volumes:
       - ./shared:/app/shared
     environment:
@@ -114,7 +122,7 @@ services:
     # No fixed host port — see dataset_service comment above.
     expose:
       - "8004"
-    env_file: .env.example
+    env_file: .env
     volumes:
       - ./shared:/app/shared
     environment:
@@ -125,9 +133,13 @@ services:
 
   auth_service:
     build: ./auth_service
-    ports:
-      - "8005:8005"
-    env_file: .env.example
+    # No fixed host port (Fase 5, B5, BACKLOG.md) — this used to be the
+    # only backend service with a published port, which let anyone bypass
+    # Nginx's rate limiting entirely by hitting :8005 directly. Same
+    # rationale as dataset_service's comment above.
+    expose:
+      - "8005"
+    env_file: .env
     volumes:
       - ./shared:/app/shared
     environment:

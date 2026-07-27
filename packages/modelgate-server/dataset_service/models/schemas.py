@@ -34,4 +34,8 @@ class UploadResponseSchema(BaseModel):
     class_count: int
     total_images: int
     file_size_mb: float
-    invalid_files: list[str]
+    cached: bool = False
+    # `invalid_files` (corrupted images at upload time) removed in Fase 5 —
+    # that check now lives solely in modelgate-core's MGS-0002 checker
+    # (G4/D2.1, BACKLOG.md), run when an audit is requested. Upload no
+    # longer duplicates it. See dataset_service/routers/upload.py.

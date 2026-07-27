@@ -173,20 +173,25 @@ Plus: permukaan API publik dikunci (D5.1), `CHANGELOG.md` dimulai (H5), README r
 
 ---
 
-## Fase 5 — Server jadi konsumen core
+## Fase 5 — Server jadi konsumen core · ✅ SELESAI
 
-**Ukuran:** 1–2 minggu
+**Ukuran:** 1–2 minggu (aktual: satu sesi kerja lanjutan, diverifikasi via Docker sungguhan — bukan hanya baca kode)
 
-- Hapus seluruh mesin tier (G8): batas upload, pemilihan analyzer per plan, kuota harian, gating PDF
-- Hapus `analysis_service/analyzers/` — panggil `modelgate-core` (G4, D2.1)
-- **Storage disimpan ulang supaya Manifest terekonstruksi utuh** (G7) — perbaikan struktural, bukan tambalan A1
-- Sisa item B yang masih relevan: B2 (IDOR), B4 (`.env`), B5 (port 8005), B6 (token WS)
-- Auth jadi opsional, mati secara default (F9)
+- Hapus seluruh mesin tier (G8): batas upload, pemilihan analyzer, kuota harian, gating PDF, kolom `plan` di `User`, endpoint `/upgrade` — semuanya di `dataset_service`, `audit_service`, `report_service`, `auth_service`
+- `analysis_service/analyzers/` dihapus total — `consumer.py` sekarang memanggil `modelgate.audit()` satu kali per job (G4, D2.1)
+- Storage (`dataset_service/services/minio_service.py`) ditulis ulang: objek disimpan pakai `Sample.uri` kanonik (sudah termasuk split/label/filename dari Reader), bukan skema `{dataset_id}/{class_name}/{filename}` lama yang membuang info split (G7)
+- Docker build context untuk `dataset_service` + `analysis_service` diperluas ke repo root supaya bisa `pip install` `modelgate-core` sebagai sibling package
+- `modelgate.read_dataset` naik jadi bagian permukaan API publik (D5.1) — dataset_service butuh validasi struktur tanpa menjalankan full audit
+- IDOR di `create_audit()` diperbaiki (B2) — sekaligus ketemu bug turunan: `DatasetReadOnly` (read-only mirror di audit_service) tidak punya kolom `user_id` sama sekali, jadi ownership check baru crash `AttributeError` sampai kolomnya ditambahkan
+- Auth opsional, mati default (F9) — toggle `AUTH_REQUIRED` di `/internal/verify`, bukan di `nginx.conf` (nginx tidak punya conditional bersih untuk skip `auth_request`). Ketemu bug saat testing: pseudo-user default sempat berupa string `"local"`, padahal kolom `user_id` di DB bertipe UUID — diganti UUID nil (`00000000-...`)
+- `.env` vs `.env.example` (B4), port 8005 (B5), duplikasi blok nginx (E6), env var MinIO yang tidak konsisten (E5) — semua diperbaiki
+- **Alembic diaktifkan penuh untuk 4 service** (auth/dataset/audit/analysis — `report_service` dilewati sengaja, ia tidak punya tabel sendiri sama sekali). Baseline di-generate dari skema kosong (bukan dari DB yang sudah ada — koreksi atas kesalahpahaman di draf awal roadmap ini soal cara kerja `--autogenerate`), diverifikasi **dua jalur**: `upgrade head` dari DB kosong, dan `stamp head` pada DB yang disimulasikan seperti hasil `create_all()` lama. Migrasi dijalankan via `docker-entrypoint.sh` di tiap container sebelum `uvicorn` start.
 
-**Exit criteria**
-- `conformance/runner.py` hijau **untuk server**, output identik byte-per-byte dengan core — ini bukti G5, bukan klaim G5
-- `git grep -i "free\|pro\|max"` tidak menemukan sisa logika tier
-- Nol implementasi checker di luar `modelgate-core`
+**Exit criteria — semua terpenuhi, diverifikasi lewat stack Docker hidup:**
+- ✅ `conformance/runner.py` hijau **untuk server** (`conformance/server_client.py`, kontrak HTTP) — **12/12 fixture identik** dengan `modelgate-core`, termasuk `dataset_hash` yang sama persis. Ini bukti G5, bukan klaim.
+- ✅ `git grep -i "free\|pro\|max"` di kode aktif hanya menemukan komentar historis ("tier lama sudah dihapus"), nol logika aktif
+- ✅ Nol implementasi checker di luar `modelgate-core`
+- ✅ Bukti tambahan di luar exit criteria tertulis: upload `adhoc-split.zip` lewat HTTP asli → MinIO benar-benar menyimpan `train/cat/0.jpg`, `test/cat/1.jpg` dst (G7 hidup, bukan teori)
 
 ---
 

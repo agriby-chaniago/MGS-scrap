@@ -22,12 +22,10 @@ class AuditWriteBase(DeclarativeBase):
     pass
 
 
-def init_db():
-    with engine.connect() as conn:
-        conn.execute(text("CREATE SCHEMA IF NOT EXISTS analysis_svc"))
-        conn.commit()
-    from models.orm import AnalysisResult  # noqa: F401
-    AnalysisBase.metadata.create_all(bind=engine)
+# Fase 5 (ROADMAP.md, BACKLOG.md E3): schema creation/evolution is now
+# owned entirely by Alembic (`alembic upgrade head`, run in the container
+# entrypoint before the app starts), not an init_db()-on-startup
+# create_all() call.
 
 
 def get_db():
