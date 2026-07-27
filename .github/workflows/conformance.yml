@@ -1,10 +1,16 @@
 name: MGS Conformance
 
-# Fase 3 exit criteria (ROADMAP.md): CI must fail on any conformance
-# mismatch — not just build container images (that's build.yml). This is
-# the gate that makes MGS a specification rather than a claim: any PR
-# that changes modelgate-core's Reader/Checker/Report behavior has to
-# still reproduce every frozen expected/*.json exactly, or this fails.
+# CI must fail on any conformance mismatch — this is the gate that makes
+# MGS a specification rather than a claim: any PR that changes
+# modelgate-core's Reader/Checker/Report behavior has to still reproduce
+# every frozen expected/*.json exactly, or this fails.
+#
+# Scoped to modelgate-core + its CLI only — the library-first focus
+# (CONTRIBUTING.md). conformance/server_client.py and action_client.py
+# still exist and still work (they were verified in ROADMAP.md Fase 5/6),
+# but aren't run here anymore since the server and GitHub Action they
+# drive are archived, not actively developed — running them on every
+# push would just be testing archived code for no one.
 
 on:
   push:
@@ -27,14 +33,14 @@ jobs:
       - name: Install modelgate-core
         run: pip install -e packages/modelgate-core
 
-      - name: Run conformance corpus (direct CLI — first interface)
+      - name: Run conformance corpus
         run: python3 conformance/runner.py
 
-      - name: Run conformance corpus (GitHub Action's own steps — Fase 6)
-        # This exercises packages/github-action/action.yml's actual logic
-        # (via conformance/action_client.py, which replays the same
-        # steps), not just the CLI a second time — a fourth interface
-        # proving G5 (BACKLOG.md), alongside core/CLI (direct import) and
-        # server (conformance/server_client.py, run manually — the full
-        # Docker stack it needs isn't set up in this CI job).
-        run: python3 conformance/runner.py --tool "python3 conformance/action_client.py"
+      - name: Run quickstart notebook
+        # The example in examples/quickstart.ipynb is the primary
+        # documented use case (check a dataset before training, in a
+        # notebook) — it must actually keep running, not just look
+        # plausible. `jupyter execute` fails the step on any cell error.
+        run: |
+          pip install jupyter nbclient
+          jupyter execute packages/modelgate-core/examples/quickstart.ipynb --output /tmp/quickstart_ci_check.ipynb

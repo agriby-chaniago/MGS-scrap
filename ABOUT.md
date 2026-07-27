@@ -86,10 +86,13 @@ Berada di lapisan **Data Quality** — sebelum preprocessing dan training, setel
 [Evaluasi & Deploy]   inference, monitoring
 ```
 
-Tidak terikat pada framework ML apapun. Distribusinya sengaja diurutkan
-library/CLI dulu, server belakangan — lihat `ROADMAP.md` — karena jalur
-adopsi yang realistis untuk sebuah alat verifikasi adalah `pip install`
-dan satu langkah di CI, bukan menyalakan satu stack microservice penuh.
+Tidak terikat pada framework ML apapun. Fokus proyek sekarang murni
+library/CLI — `packages/modelgate-core`, dipakai langsung di notebook
+atau CI. Stack server/web/Streamlit (hasil fase UAS awal) diarsipkan,
+bukan dikembangkan lagi — lihat `README.md` bagian "Archived
+components". Jalur adopsi yang realistis untuk alat verifikasi adalah
+`pip install` dan satu langkah di CI, bukan menyalakan satu stack
+microservice penuh.
 
 ---
 

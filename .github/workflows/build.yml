@@ -1,10 +1,14 @@
 name: Build & Push Images
 
+# Manual-only (workflow_dispatch), not triggered on every push/PR anymore —
+# every image this builds (server microservices, Streamlit, React) is
+# archived per the project's pivot to a library-first focus (see
+# packages/modelgate-server/README.md and CONTRIBUTING.md). Building and
+# pushing these on every commit would burn CI minutes and GHCR storage
+# for images nobody's consuming. Kept, not deleted, in case the server
+# stack is ever revived — run it by hand from the Actions tab if needed.
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
